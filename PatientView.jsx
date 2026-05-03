@@ -549,8 +549,90 @@ const AvaliacaoFormTab = ({ patient, avaliacao: initialAv, isNew, onSave, protoR
   );
 };
 
+// ---- Componentes do relatório no nível do módulo (evita desmontagem a cada render) ----
+const _nPR = (v, d=1) => v != null && !isNaN(v) ? Number(v).toFixed(d).replace('.',',') : '—';
+
+const taStylePR = (base) => ({ ...base, border:'none', borderBottom:'1.5px dashed #ccc', background:'transparent', fontFamily:"'DM Sans',sans-serif", padding:0, outline:'none', width:'100%', boxSizing:'border-box' });
+
+const BdgPR = ({ tag, label }) => {
+  const c={green:'#166534',yellow:'#854D0E',orange:'#9A3412',red:'#991B1B',blue:'#1E40AF',gray:'#475569'};
+  const b={green:'#DCFCE7',yellow:'#FEF9C3',orange:'#FFEDD5',red:'#FEE2E2',blue:'#DBEAFE',gray:'#F1F5F9'};
+  return <span style={{ fontSize:10.5,fontWeight:700,padding:'2px 8px',borderRadius:4,color:c[tag]||c.gray,background:b[tag]||b.gray,whiteSpace:'nowrap' }}>{label}</span>;
+};
+
+const EvoLinePR = ({ v0, vN, unit='', dec=1, lowerIsBetter=false }) => {
+  if (v0==null||vN==null||isNaN(v0)||isNaN(vN)) return null;
+  const d=vN-v0, isNeutral=Math.abs(d)<0.01;
+  const isGood=isNeutral?true:(lowerIsBetter?d<0:d>0);
+  const color=isNeutral?'#888':(isGood?'#16a34a':'#dc2626');
+  return (
+    <div style={{ fontSize:10, color, fontWeight:600, marginBottom:5, display:'flex', alignItems:'center', gap:4 }}>
+      <span>{isNeutral?'→':d>0?'↑':'↓'}</span>
+      <span>{_nPR(v0,dec)} {unit} → {_nPR(vN,dec)} {unit}</span>
+      <span style={{ color:'#bbb', fontWeight:400 }}>({d>0?'+':''}{_nPR(d,dec)} {unit} desde o início)</span>
+    </div>
+  );
+};
+
+const ReportCard = ({ label, value, unit, badge, explain, idealRange, v0, vN, vUnit='', vDec=1, lowerIsBetter=false, textKey, editMode, onTextChange }) => (
+  <div style={{ border:'1px solid #e0e0e0',borderRadius:8,padding:'11px 13px',breakInside:'avoid' }}>
+    <div style={{ fontSize:9,fontWeight:700,color:'#888',textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:4 }}>{label}</div>
+    <div style={{ display:'flex',alignItems:'baseline',gap:8,marginBottom:3 }}>
+      <span style={{ fontSize:22,fontWeight:800,fontFamily:'monospace',color:'#111',lineHeight:1 }}>{value}</span>
+      {unit&&<span style={{ fontSize:11,color:'#888' }}>{unit}</span>}
+      {badge&&<BdgPR tag={badge.tag} label={badge.label}/>}
+    </div>
+    <EvoLinePR v0={v0} vN={vN} unit={vUnit} dec={vDec} lowerIsBetter={lowerIsBetter}/>
+    {editMode
+      ? <AutoTextarea value={explain} onChange={v => onTextChange(textKey, v)}
+          style={taStylePR({ fontSize:10,color:'#333',lineHeight:1.5,marginBottom:idealRange?3:0 })} />
+      : <div style={{ fontSize:10,color:'#333',lineHeight:1.5,marginBottom:idealRange?3:0 }}>{explain}</div>
+    }
+    {idealRange&&<div style={{ fontSize:9.5,color:'#16a34a',fontWeight:600,marginTop:3 }}>✓ Faixa ideal: {idealRange}</div>}
+  </div>
+);
+
+const ReportSection = ({ title, sub, subKey, editMode, onTextChange }) => (
+  <div style={{ borderBottom:'2px solid #111',paddingBottom:3,marginBottom:8,marginTop:16,breakAfter:'avoid' }}>
+    <div style={{ fontSize:11,fontWeight:800,color:'#111',textTransform:'uppercase',letterSpacing:'0.08em' }}>{title}</div>
+    {sub && (editMode
+      ? <AutoTextarea value={sub} onChange={v => onTextChange(subKey, v)}
+          style={taStylePR({ fontSize:9.5,color:'#888',marginTop:1 })} />
+      : <div style={{ fontSize:9.5,color:'#888',marginTop:1 }}>{sub}</div>
+    )}
+  </div>
+);
+
+// ---- Textarea auto-redimensionável para edição inline no relatório ----
+const AutoTextarea = ({ value, onChange, style }) => {
+  const ref = React.useRef(null);
+  React.useEffect(() => {
+    if (ref.current) { ref.current.style.height = 'auto'; ref.current.style.height = ref.current.scrollHeight + 'px'; }
+  }, [value]);
+  return (
+    <textarea ref={ref} value={value} onChange={e => onChange(e.target.value)}
+      style={{ ...style, resize:'none', overflow:'hidden', display:'block' }} />
+  );
+};
+
+// ---- Textos padrão do relatório (editáveis antes de imprimir) ----
+const DEFAULT_REPORT_TEXTS = {
+  secComposicaoSub: "Distribuição dos compartimentos corporais: músculo, gordura, osso e água.",
+  secCardioSub:     "Indicadores relacionados à distribuição regional da gordura corporal.",
+  peso:      "Massa corporal total, que engloba músculo, gordura, osso, órgãos e água. A balança registra a soma desses compartimentos sem discriminar cada um.",
+  imc:       "Índice que relaciona peso e altura. É um instrumento de triagem populacional, utilizado em conjunto com outras medidas porque não distingue gordura de músculo.",
+  pctG:      "Proporção do peso corporal formada por tecido adiposo. Inclui a gordura essencial (presente em órgãos e hormônios) e a gordura de reserva (armazenada sob a pele e ao redor dos órgãos).",
+  gordKg:    "Quantidade absoluta de gordura em quilogramas, obtida a partir do percentual de gordura e do peso total. Complementa a leitura percentual ao expressar a massa em peso.",
+  massaMagra:"Soma de tudo que não é gordura no corpo: músculo, osso, órgãos e água. Também chamada de massa livre de gordura (MLG).",
+  musculo:   "Estimativa da massa dos músculos esqueléticos, responsáveis pelo movimento e pela postura. Calculada pela equação de Lee et al. (2000) a partir de circunferências e da estatura.",
+  cintura:   "Perímetro medido na região de menor circunferência do tronco, entre a última costela e a crista ilíaca. Reflete o acúmulo de gordura na região abdominal.",
+  rcq:       "Razão entre a circunferência da cintura e a do quadril. Indica o padrão de distribuição da gordura corporal, classificado como androide (acúmulo central) ou ginoide (acúmulo periférico).",
+  rce:       "Razão entre a circunferência da cintura e a estatura. Um valor abaixo de 0,50 indica que a cintura é menor que metade da altura, o que é considerado adequado para a maioria dos adultos.",
+  notas:     "Composição corporal estimada pelo protocolo indicado, com conversão por Siri (1961). Massa muscular esquelética calculada por Lee et al. (2000). IMC classificado conforme OMS (2006). Faixa de peso ideal para IMC entre 18,5 e 24,9 kg/m². Os resultados são estimativas obtidas a partir de medidas externas e não substituem exames laboratoriais nem avaliação clínica individualizada.",
+};
+
 // ---- Relatório impresso orientado ao paciente ----
-const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG }) => {
+const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, texts = DEFAULT_REPORT_TEXTS, editMode = false, onTextChange = () => {} }) => {
   if (!avs.length) return null;
   const firstAv = avs[0], lastAv = avs[avs.length - 1];
   const r0 = calcularTudo(firstAv.peso, firstAv.altura, patient.sexo, idade, firstAv.dobras, firstAv.circs);
@@ -692,49 +774,6 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG }) =
     );
   };
 
-  // ── Componentes internos ─────────────────────────────────────────
-  const EvoLine = ({ v0, vN, unit='', dec=1, lowerIsBetter=false }) => {
-    if (v0==null||vN==null||isNaN(v0)||isNaN(vN)) return null;
-    const d=vN-v0, isNeutral=Math.abs(d)<0.01;
-    const isGood=isNeutral?true:(lowerIsBetter?d<0:d>0);
-    const color=isNeutral?'#888':(isGood?'#16a34a':'#dc2626');
-    return (
-      <div style={{ fontSize:10, color, fontWeight:600, marginBottom:5, display:'flex', alignItems:'center', gap:4 }}>
-        <span>{isNeutral?'→':d>0?'↑':'↓'}</span>
-        <span>{n(v0,dec)} {unit} → {n(vN,dec)} {unit}</span>
-        <span style={{ color:'#bbb', fontWeight:400 }}>({d>0?'+':''}{n(d,dec)} {unit} desde o início)</span>
-      </div>
-    );
-  };
-
-  const Bdg = ({ tag, label }) => {
-    const c={green:'#166534',yellow:'#854D0E',orange:'#9A3412',red:'#991B1B',blue:'#1E40AF',gray:'#475569'};
-    const b={green:'#DCFCE7',yellow:'#FEF9C3',orange:'#FFEDD5',red:'#FEE2E2',blue:'#DBEAFE',gray:'#F1F5F9'};
-    return <span style={{ fontSize:10.5,fontWeight:700,padding:'2px 8px',borderRadius:4,color:c[tag]||c.gray,background:b[tag]||b.gray,whiteSpace:'nowrap' }}>{label}</span>;
-  };
-
-  const Card = ({ label, value, unit, badge, explain, idealRange, v0, vN, vUnit='', vDec=1, lowerIsBetter=false }) => (
-    <div style={{ border:'1px solid #e0e0e0',borderRadius:8,padding:'11px 13px',breakInside:'avoid' }}>
-      <div style={{ fontSize:9,fontWeight:700,color:'#888',textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:4 }}>{label}</div>
-      <div style={{ display:'flex',alignItems:'baseline',gap:8,marginBottom:3 }}>
-        <span style={{ fontSize:22,fontWeight:800,fontFamily:'monospace',color:'#111',lineHeight:1 }}>{value}</span>
-        {unit&&<span style={{ fontSize:11,color:'#888' }}>{unit}</span>}
-        {badge&&<Bdg tag={badge.tag} label={badge.label}/>}
-      </div>
-      <EvoLine v0={v0} vN={vN} unit={vUnit} dec={vDec} lowerIsBetter={lowerIsBetter}/>
-      <div style={{ fontSize:10,color:'#333',lineHeight:1.5,marginBottom:idealRange?3:0 }}>{explain}</div>
-      {idealRange&&<div style={{ fontSize:9.5,color:'#16a34a',fontWeight:600,marginTop:3 }}>✓ Faixa ideal: {idealRange}</div>}
-    </div>
-  );
-
-  // Título de seção que nunca fica órfão — breakAfter:avoid força o conteúdo a acompanhar
-  const Section = ({ title, sub }) => (
-    <div style={{ borderBottom:'2px solid #111',paddingBottom:3,marginBottom:8,marginTop:16,breakAfter:'avoid' }}>
-      <div style={{ fontSize:11,fontWeight:800,color:'#111',textTransform:'uppercase',letterSpacing:'0.08em' }}>{title}</div>
-      {sub&&<div style={{ fontSize:9.5,color:'#888',marginTop:1 }}>{sub}</div>}
-    </div>
-  );
-
   return (
     <div style={{ fontFamily:"'DM Sans',sans-serif",color:'#111' }}>
 
@@ -788,13 +827,13 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG }) =
       {/* ══════════════════════════════════════════════════════════════
           COMPOSIÇÃO CORPORAL
       ══════════════════════════════════════════════════════════════ */}
-      <Section title="Composição Corporal" sub="O que compõe o seu peso — quanto é músculo, gordura, ossos e água." />
+      <ReportSection title="Composição Corporal" sub={texts.secComposicaoSub} subKey="secComposicaoSub" editMode={editMode} onTextChange={onTextChange} />
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:7 }}>
 
           {/* Peso + gráfico */}
           <div style={{ breakInside:'avoid', display:'flex', flexDirection:'column', gap:6 }}>
-            <Card label="Peso Corporal" value={n(lastAv.peso)} unit="kg"
-              explain="Seu peso total, incluindo músculos, gordura, ossos, órgãos e água. O número na balança sozinho não conta a história completa — o que importa é de que é feito."
+            <ReportCard label="Peso Corporal" value={n(lastAv.peso)} unit="kg"
+              explain={texts.peso} textKey="peso" editMode={editMode} onTextChange={onTextChange}
               idealRange={fp?`${n(fp[0])}–${n(fp[1])} kg para sua altura`:null}
               v0={firstAv.peso} vN={lastAv.peso} vUnit="kg" lowerIsBetter={true}/>
             <MiniChart unit="kg" data={chartSeries(av=>av.peso)} fallbackColor="#2563eb"/>
@@ -802,8 +841,8 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG }) =
 
           {/* IMC + gráfico */}
           <div style={{ breakInside:'avoid', display:'flex', flexDirection:'column', gap:6 }}>
-            <Card label="Índice de Massa Corporal (IMC)" value={n(rN.imc)} unit="kg/m²" badge={rN.classIMC}
-              explain="Relaciona peso e altura. Útil como triagem inicial, mas não distingue gordura de músculo — uma pessoa musculosa pode ter IMC alto sem excesso de gordura."
+            <ReportCard label="Índice de Massa Corporal (IMC)" value={n(rN.imc)} unit="kg/m²" badge={rN.classIMC}
+              explain={texts.imc} textKey="imc" editMode={editMode} onTextChange={onTextChange}
               idealRange="18,5 – 24,9 kg/m²"
               v0={r0.imc} vN={rN.imc} lowerIsBetter={true}/>
             <MiniChart unit="kg/m²" data={chartSeries(av=>calcIMC(av.peso,av.altura))} bands={IMC_BANDS} fallbackColor="#16a34a"/>
@@ -811,8 +850,8 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG }) =
 
           {/* % Gordura + gráfico */}
           <div style={{ breakInside:'avoid', display:'flex', flexDirection:'column', gap:6 }}>
-            <Card label="Percentual de Gordura" value={gN!=null?n(gN):'—'} unit="%" badge={gN!=null?classPctG(gN,patient.sexo):null}
-              explain="Indica qual parte do seu peso é composta por gordura. Gordura em excesso aumenta o risco de doenças metabólicas e cardiovasculares; em falta pode prejudicar hormônios e imunidade."
+            <ReportCard label="Percentual de Gordura" value={gN!=null?n(gN):'—'} unit="%" badge={gN!=null?classPctG(gN,patient.sexo):null}
+              explain={texts.pctG} textKey="pctG" editMode={editMode} onTextChange={onTextChange}
               idealRange={patient.sexo==='F'?'21–25% (boa forma)':'14–18% (boa forma)'}
               v0={g0} vN={gN} vUnit="%" lowerIsBetter={true}/>
             <MiniChart unit="%" data={chartSeries(av=>getProtoG(av))} bands={pctgBands} fallbackColor="#dc2626"/>
@@ -820,24 +859,24 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG }) =
 
           {/* Gordura kg + gráfico */}
           <div style={{ breakInside:'avoid', display:'flex', flexDirection:'column', gap:6 }}>
-            <Card label="Gordura em Quilos" value={gN!=null?n(lastAv.peso*gN/100):'—'} unit="kg"
-              explain="A quantidade total de gordura no seu corpo em peso absoluto. Reduzir gordura — não apenas o número na balança — é o objetivo central de um processo de emagrecimento saudável."
+            <ReportCard label="Gordura em Quilos" value={gN!=null?n(lastAv.peso*gN/100):'—'} unit="kg"
+              explain={texts.gordKg} textKey="gordKg" editMode={editMode} onTextChange={onTextChange}
               v0={g0!=null?firstAv.peso*g0/100:null} vN={gN!=null?lastAv.peso*gN/100:null} vUnit="kg" lowerIsBetter={true}/>
             <MiniChart unit="kg" data={chartSeries(av=>{const g=getProtoG(av);return g!=null?av.peso*g/100:null;})} fallbackColor="#dc2626"/>
           </div>
 
           {/* Massa Magra + gráfico */}
           <div style={{ breakInside:'avoid', display:'flex', flexDirection:'column', gap:6 }}>
-            <Card label="Massa Magra" value={gN!=null?n(lastAv.peso*(1-gN/100)):'—'} unit="kg"
-              explain="Tudo que não é gordura: músculos, ossos, órgãos e água. Preservar a massa magra durante o emagrecimento é fundamental — ela mantém seu metabolismo funcionando bem."
+            <ReportCard label="Massa Magra" value={gN!=null?n(lastAv.peso*(1-gN/100)):'—'} unit="kg"
+              explain={texts.massaMagra} textKey="massaMagra" editMode={editMode} onTextChange={onTextChange}
               v0={g0!=null?firstAv.peso*(1-g0/100):null} vN={gN!=null?lastAv.peso*(1-gN/100):null} vUnit="kg" lowerIsBetter={false}/>
             <MiniChart unit="kg" data={chartSeries(av=>{const g=getProtoG(av);return g!=null?av.peso*(1-g/100):null;})} fallbackColor="#9333ea"/>
           </div>
 
           {/* Músculo + gráfico */}
           <div style={{ breakInside:'avoid', display:'flex', flexDirection:'column', gap:6 }}>
-            <Card label="Músculo Esquelético" value={n(rN.mm)} unit="kg"
-              explain="Os músculos responsáveis pelo movimento do corpo. Manter a massa muscular durante o emagrecimento é importante para o metabolismo e a qualidade de vida a longo prazo."
+            <ReportCard label="Músculo Esquelético" value={n(rN.mm)} unit="kg"
+              explain={texts.musculo} textKey="musculo" editMode={editMode} onTextChange={onTextChange}
               v0={r0.mm} vN={rN.mm} vUnit="kg" lowerIsBetter={false}/>
             <MiniChart unit="kg" data={chartSeries(av=>calcularTudo(av.peso,av.altura,patient.sexo,idade,av.dobras,av.circs).mm)} fallbackColor="#0891b2"/>
           </div>
@@ -848,13 +887,13 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG }) =
           SAÚDE CARDIOVASCULAR
       ══════════════════════════════════════════════════════════════ */}
       <div style={{ breakInside:'avoid' }}>
-        <Section title="Saúde Cardiovascular" sub="Onde a gordura está no corpo importa tanto quanto quanto de gordura há." />
+        <ReportSection title="Saúde Cardiovascular" sub={texts.secCardioSub} subKey="secCardioSub" editMode={editMode} onTextChange={onTextChange} />
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:7 }}>
 
           {/* Cintura + gráfico */}
           <div style={{ breakInside:'avoid', display:'flex', flexDirection:'column', gap:6 }}>
-            <Card label="Circunferência da Cintura" value={n(lastAv.circs?.cintura,0)} unit="cm"
-              explain="Mede a gordura na região abdominal. Gordura na barriga está ligada a maior risco de diabetes, pressão alta e doenças do coração — mesmo em pessoas com peso normal."
+            <ReportCard label="Circunferência da Cintura" value={n(lastAv.circs?.cintura,0)} unit="cm"
+              explain={texts.cintura} textKey="cintura" editMode={editMode} onTextChange={onTextChange}
               idealRange={patient.sexo==='F'?'Menos de 80 cm':'Menos de 94 cm'}
               v0={firstAv.circs?.cintura} vN={lastAv.circs?.cintura} vUnit="cm" vDec={0} lowerIsBetter={true}/>
             <MiniChart unit="cm" data={chartSeries(av=>av.circs?.cintura,0)} fallbackColor="#d97706"/>
@@ -862,8 +901,8 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG }) =
 
           {/* RCQ + gráfico */}
           <div style={{ breakInside:'avoid', display:'flex', flexDirection:'column', gap:6 }}>
-            <Card label="Distribuição de Gordura no Corpo" value={n(rN.rcq,2)} unit="" badge={classRCQ(rN.rcq,patient.sexo)}
-              explain="Compara cintura e quadril para identificar onde a gordura se acumula. Gordura concentrada na barriga ('maçã') é mais perigosa que nos quadris e coxas ('pera'). O gráfico abaixo mostra sua evolução e a faixa de risco em cada avaliação."
+            <ReportCard label="Distribuição de Gordura no Corpo (RCQ)" value={n(rN.rcq,2)} unit="" badge={classRCQ(rN.rcq,patient.sexo)}
+              explain={texts.rcq} textKey="rcq" editMode={editMode} onTextChange={onTextChange}
               idealRange={patient.sexo==='F'?'Abaixo de 0,80':'Abaixo de 0,90'}
               v0={r0.rcq} vN={rN.rcq} vUnit="" vDec={2} lowerIsBetter={true}/>
             <MiniChart unit="" data={chartSeries(av=>calcularTudo(av.peso,av.altura,patient.sexo,idade,av.dobras,av.circs).rcq,2)} bands={rcqBands} fallbackColor="#be123c"/>
@@ -871,8 +910,8 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG }) =
 
           {/* RCE + gráfico */}
           <div style={{ breakInside:'avoid', display:'flex', flexDirection:'column', gap:6 }}>
-            <Card label="Gordura Abdominal vs. Altura" value={n(rN.rce,2)} unit="" badge={classRCE(rN.rce)}
-              explain="Sua cintura deveria ser menor que metade da sua altura (resultado abaixo de 0,50). Detecta excesso de gordura ao redor dos órgãos internos. O gráfico abaixo mostra sua evolução e a faixa de risco em cada avaliação."
+            <ReportCard label="Gordura Abdominal vs. Altura (RCE)" value={n(rN.rce,2)} unit="" badge={classRCE(rN.rce)}
+              explain={texts.rce} textKey="rce" editMode={editMode} onTextChange={onTextChange}
               idealRange="Abaixo de 0,50"
               v0={r0.rce} vN={rN.rce} vUnit="" vDec={2} lowerIsBetter={true}/>
             <MiniChart unit="" data={chartSeries(av=>calcularTudo(av.peso,av.altura,patient.sexo,idade,av.dobras,av.circs).rce,2)} bands={RCE_BANDS} fallbackColor="#0369a1"/>
@@ -885,7 +924,7 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG }) =
           HISTÓRICO DE AVALIAÇÕES
       ══════════════════════════════════════════════════════════════ */}
       <div style={{ breakInside:'avoid' }}>
-        <Section title="Histórico de Avaliações" sub={`Protocolo de composição corporal: ${protoLabel}`}/>
+        <ReportSection title="Histórico de Avaliações" sub={`Protocolo de composição corporal: ${protoLabel}`}/>
         <table style={{ width:'100%',borderCollapse:'collapse',fontSize:10 }}>
           <thead>
             <tr style={{ background:'#f4f4f4' }}>
@@ -921,10 +960,55 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG }) =
       {/* ── Notas metodológicas ── */}
       <div style={{ marginTop:14,padding:'9px 13px',background:'#fafafa',borderRadius:6,border:'1px solid #eee' }}>
         <div style={{ fontSize:8.5,fontWeight:700,color:'#888',textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:4 }}>Notas Metodológicas</div>
-        <div style={{ fontSize:9,color:'#666',lineHeight:1.7 }}>
-          Composição corporal pelo protocolo {protoLabel} via equação de Siri (1961). Massa muscular esquelética por Lee et al. (2000).
-          IMC classificado conforme OMS (2006). Faixa de peso ideal para IMC de eutrofia (18,5–24,9 kg/m²).
-          Todos os valores são estimativas baseadas em medidas externas — não substituem exames laboratoriais ou avaliação clínica individualizada.
+        {editMode
+          ? <AutoTextarea value={texts.notas} onChange={v => onTextChange('notas', v)}
+              style={{ fontSize:9, color:'#666', lineHeight:1.7, border:'none', borderBottom:'1.5px dashed #ccc', background:'transparent', fontFamily:"'DM Sans',sans-serif", padding:0, outline:'none', width:'100%', boxSizing:'border-box' }} />
+          : <div style={{ fontSize:9,color:'#666',lineHeight:1.7 }}>{texts.notas}</div>
+        }
+      </div>
+    </div>
+  );
+};
+
+// ---- Modal de pré-visualização e edição do relatório ----
+const PrintPreviewModal = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, texts, onTextsChange, onClose, onPrint }) => {
+  const [draft, setDraft] = React.useState({ ...texts });
+  const updateText = (key, val) => setDraft(p => ({ ...p, [key]: val }));
+
+  React.useEffect(() => {
+    const h = e => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', h);
+    return () => document.removeEventListener('keydown', h);
+  }, []);
+
+  const handlePrint = () => {
+    onTextsChange(draft);
+    onPrint();
+  };
+
+  return (
+    <div className="no-print" style={{ position:'fixed', top:0, left:0, right:0, bottom:0, zIndex:9000, background:'#e4e4e4', display:'flex', flexDirection:'column', overflow:'hidden' }}>
+      {/* Toolbar */}
+      <div style={{ flexShrink:0, height:52, background:'#1a1a1a', display:'flex', alignItems:'center', padding:'0 20px', gap:12 }}>
+        <div style={{ flex:1, fontSize:13, fontWeight:700, color:'#fff', letterSpacing:'-0.01em' }}>
+          Pré-visualização · {patient.nome}
+        </div>
+        <span style={{ fontSize:11, color:'#9CA3AF' }}>Clique nos textos sublinhados para editar</span>
+        <button onClick={onClose} style={{ background:'rgba(255,255,255,0.10)', border:'1px solid rgba(255,255,255,0.15)', borderRadius:6, padding:'6px 14px', fontSize:13, fontWeight:600, cursor:'pointer', color:'#fff', fontFamily:'inherit' }}>
+          Fechar
+        </button>
+        <button onClick={handlePrint} style={{ background:'#2563eb', border:'none', borderRadius:6, padding:'6px 18px', fontSize:13, fontWeight:600, cursor:'pointer', color:'#fff', fontFamily:'inherit' }}>
+          🖨 Imprimir
+        </button>
+      </div>
+      {/* Conteúdo scrollável */}
+      <div style={{ flex:1, overflow:'auto', padding:'28px 24px', display:'flex', justifyContent:'center' }}>
+        <div style={{ background:'#fff', width:794, padding:'32px 40px', boxShadow:'0 2px 24px rgba(0,0,0,0.14)', fontFamily:"'DM Sans',sans-serif" }}>
+          <PrintReport
+            patient={patient} avs={avs} protoRef={protoRef} protoLabel={protoLabel}
+            idade={idade} getProtoG={getProtoG}
+            texts={draft} editMode={true} onTextChange={updateText}
+          />
         </div>
       </div>
     </div>
@@ -1091,6 +1175,9 @@ const HistoricoTab = ({ patient, avaliacoes, protoRef }) => {
     );
   };
 
+  const [reportTexts, setReportTexts] = React.useState(DEFAULT_REPORT_TEXTS);
+  const [previewOpen, setPreviewOpen] = React.useState(false);
+
   const [aiSummary, setAiSummary] = React.useState(null);
   const [aiLoading, setAiLoading] = React.useState(false);
   const [aiCollapsed, setAiCollapsed] = React.useState(false);
@@ -1187,8 +1274,20 @@ const HistoricoTab = ({ patient, avaliacoes, protoRef }) => {
 
       {/* Relatório impresso — orientado ao paciente */}
       <div className="print-only" style={{ display: "none" }}>
-        <PrintReport patient={patient} avs={avs} protoRef={protoRef} protoLabel={protoLabel} idade={idade} getProtoG={getProtoG} />
+        <PrintReport patient={patient} avs={avs} protoRef={protoRef} protoLabel={protoLabel} idade={idade} getProtoG={getProtoG} texts={reportTexts} />
       </div>
+
+      {/* Modal de pré-visualização */}
+      {previewOpen && (
+        <PrintPreviewModal
+          patient={patient} avs={avs} protoRef={protoRef} protoLabel={protoLabel}
+          idade={idade} getProtoG={getProtoG}
+          texts={reportTexts}
+          onTextsChange={setReportTexts}
+          onClose={() => setPreviewOpen(false)}
+          onPrint={() => { setPreviewOpen(false); setTimeout(() => window.print(), 60); }}
+        />
+      )}
 
       {/* Barra de ações — oculta no print */}
       <div className="no-print" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
@@ -1200,7 +1299,7 @@ const HistoricoTab = ({ patient, avaliacoes, protoRef }) => {
           <span style={{ fontSize: 11, color: "var(--muted)", background: "var(--bg)", border: "1px solid var(--border)", borderRadius: 4, padding: "2px 8px" }}>%G: {protoLabel}</span>
         </div>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
-          <Btn small onClick={() => window.print()}>🖨 Exportar PDF</Btn>
+          <Btn small onClick={() => setPreviewOpen(true)}>🖨 Exportar PDF</Btn>
           <span style={{ fontSize: 10, color: "var(--muted)", textAlign: "right", lineHeight: 1.4 }}>
             No Chrome: desmarque<br/>"Cabeçalhos e rodapés"
           </span>
