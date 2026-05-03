@@ -4,30 +4,20 @@
 // ============================================================
 
 const MOCK_PATIENTS = [
-  { id: 7, nome: "Thalita Possmoser", nascimento: "1992-06-15", sexo: "F", telefone: "", objetivo: "Emagrecimento", ativo: true },
+  { id: 1, nome: "Miranda Priestly", nascimento: "1990-03-10", sexo: "F", telefone: "", objetivo: "Emagrecimento", ativo: true },
 ];
 
 const MOCK_AVALIACOES = [
-  // ── Thalita Possmoser ──────────────────────────────────────────
+  // ── Miranda Priestly (paciente de exemplo — dados fictícios) ───
   {
-    id: 7, paciente_id: 7, data: "2026-02-20", peso: 69.4, altura: 168,
-    dobras: { tricipital: 13.0, subescapular: 15.0, biceps: 4.0, axilar: 8.0, suprailíaca: 10.0, supraespinal: 9.0, abdominal: 14.0, coxa: 26.0, panturrilha: 13.0 },
-    circs: { torax: 95.1, cintura: 70.1, abdomen: 83.7, quadril: 105.4, braco: 27.8, braco_contraido: 28.4, coxa: 57.6, panturrilha: 38.4 }
+    id: 1, paciente_id: 1, data: "2025-02-10", peso: 68.0, altura: 163,
+    dobras: { tricipital: 20.0, subescapular: 16.0, biceps: 7.0, axilar: 11.0, suprailíaca: 16.0, supraespinal: 13.0, abdominal: 20.0, coxa: 26.0, panturrilha: 15.0 },
+    circs: { torax: 91.0, cintura: 78.0, abdomen: 84.0, quadril: 100.0, braco: 28.0, braco_contraido: 29.0, coxa: 57.0, panturrilha: 37.0 }
   },
   {
-    id: 8, paciente_id: 7, data: "2026-03-06", peso: 67.5, altura: 168,
-    dobras: { tricipital: 14.0, subescapular: 14.0, biceps: 4.0, axilar: 7.5, suprailíaca: 8.8, supraespinal: 7.4, abdominal: 13.5, coxa: 25.0, panturrilha: 11.5 },
-    circs: { torax: 93.6, cintura: 70.3, abdomen: 81.2, quadril: 103.8, braco: 27.2, braco_contraido: 28.4, coxa: 56.3, panturrilha: 38.0 }
-  },
-  {
-    id: 9, paciente_id: 7, data: "2026-03-20", peso: 65.4, altura: 168,
-    dobras: { tricipital: 11.0, subescapular: 13.0, biceps: 6.0, axilar: 7.0, suprailíaca: 9.0, supraespinal: 6.5, abdominal: 12.5, coxa: 23.0, panturrilha: 11.0 },
-    circs: { torax: 92.5, cintura: 68.8, abdomen: 80.6, quadril: 103.6, braco: 27.0, braco_contraido: 27.3, coxa: 55.7, panturrilha: 37.5 }
-  },
-  {
-    id: 10, paciente_id: 7, data: "2026-04-18", peso: 64.3, altura: 168,
-    dobras: { tricipital: 9.0, subescapular: 11.0, biceps: 3.5, axilar: 6.0, suprailíaca: 7.0, supraespinal: 6.0, abdominal: 11.0, coxa: 23.0, panturrilha: 12.5 },
-    circs: { torax: 92.2, cintura: 66.5, abdomen: 78.7, quadril: 100.0, braco: 26.1, braco_contraido: 27.7, coxa: 55.1, panturrilha: 37.4 }
+    id: 2, paciente_id: 1, data: "2025-04-15", peso: 65.0, altura: 163,
+    dobras: { tricipital: 17.0, subescapular: 13.0, biceps: 5.0, axilar: 9.0, suprailíaca: 13.0, supraespinal: 10.0, abdominal: 17.0, coxa: 22.0, panturrilha: 12.0 },
+    circs: { torax: 89.0, cintura: 74.0, abdomen: 81.0, quadril: 97.0, braco: 27.0, braco_contraido: 28.0, coxa: 55.0, panturrilha: 36.0 }
   },
 ];
 
