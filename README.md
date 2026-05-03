@@ -62,4 +62,4 @@ Este sistema **calcula indicadores antropométricos** com base em fórmulas vali
 
 ## Autor
 
-**Vinicius Zapola** — Nutricionista (em formação) · Pós-graduando em Nutrição Clínica (USP)
+**Vinicius Zapola** — Nutricionista · Pós-graduando em Nutrição Clínica (USP)
