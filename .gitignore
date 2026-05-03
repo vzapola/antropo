@@ -1,0 +1,23 @@
+# Sistema operacional
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editores
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs e temporários
+*.log
+*.tmp
+
+# Arquivos de ambiente local (caso um dia tenha)
+.env
+.env.local
+
+# Dados exportados localmente (caso adicione exportação)
+*.local.json
+backup-*.json

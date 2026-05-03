@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Antropo — Avaliação Antropométrica</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --topbar: #18120A; --topbar-text: #9C8470;
+    --list-bg: #FAF8F4; --list-border: #E8E0D4;
+    --bg: #F5F1EB; --surface: #FEFCF9; --border: #E8E0D4;
+    --text: #1C1308; --muted: #8A7660;
+    --accent: #B45309; --accent-light: #FEF3C7; --accent-text: #FFFFFF;
+  }
+  html, body, #root { height: 100%; font-family: 'DM Sans', sans-serif; color: var(--text); }
+  body { background: var(--bg); }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
+
+  /* Inputs focus */
+  input:focus, select:focus { outline: none; }
+  input[type=number]::-webkit-inner-spin-button { opacity: 0.3; }
+
+  /* Print — Relatório profissional */
+  @media print {
+    /* Ocultar toda a UI do sistema */
+    #top-bar, #patient-panel, #tweaks-panel, .no-print { display: none !important; }
+    /* Mostrar conteúdo de relatório */
+    .print-only { display: block !important; }
+
+    body, html {
+      background: #fff !important; color: #111 !important;
+      font-family: 'DM Sans', sans-serif !important;
+      height: auto !important; overflow: visible !important;
+    }
+
+    /* Nuclear overflow reset — necessário para inline styles do React */
+    * {
+      overflow: visible !important;
+      max-height: none !important;
+    }
+    /* Exceto elementos que precisam manter aparência */
+    img, svg { overflow: hidden !important; }
+
+    /* Flat layout: remover flex de altura fixa */
+    #root, #root > div, #root > div > div {
+      display: block !important;
+      height: auto !important;
+      flex: none !important;
+    }
+
+    /* Variáveis de cor para impressão */
+    :root {
+      --bg: #fafafa !important;
+      --surface: #fff !important;
+      --border: #ddd !important;
+      --text: #111 !important;
+      --muted: #555 !important;
+      --accent-light: #fff8ee !important;
+    }
+
+    /* Cards e seções: evitar quebra interna quando possível */
+    .ai-summary-card {
+      border-left: 3px solid #B45309 !important;
+      background: #fafafa !important;
+      break-inside: avoid;
+    }
+    .ai-summary-card > div:last-child { display: block !important; }
+
+    /* Gráficos: sem quebra interna */
+    [style*="border-radius: 10"], [style*="border-radius:10"] { break-inside: avoid; }
+
+    /* Grid de gráficos: manter 2 colunas na impressão */
+    [style*="grid-template-columns: 1fr 1fr"] {
+      display: grid !important;
+      grid-template-columns: 1fr 1fr !important;
+    }
+
+    /* Tabelas limpas */
+    table { border-collapse: collapse !important; font-size: 10pt !important; width: 100% !important; }
+    th, td { border: 1px solid #ddd !important; padding: 5px 9px !important; }
+    th { background: #f4f4f4 !important; }
+
+    /* Cores exatas para badges e faixas */
+    * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+
+    @page { margin: 12mm 10mm; size: A4; }
+
+    /* Evitar página em branco no final */
+    html, body { height: auto !important; }
+    #root > div > div:last-child,
+    #root > div > div > div:last-child { margin-bottom: 0 !important; padding-bottom: 0 !important; page-break-after: avoid !important; break-after: avoid !important; }
+  }
+
+  /* Tweaks panel */
+  #tweaks-panel {
+    position: fixed; bottom: 20px; right: 20px; z-index: 999;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 18px 20px; width: 240px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.14);
+    display: none; flex-direction: column; gap: 14px;
+    font-family: 'DM Sans', sans-serif;
+  }
+  #tweaks-panel.visible { display: flex; }
+  .tw-label { font-size: 11px; font-weight: 700; color: var(--muted); letter-spacing: 0.07em; text-transform: uppercase; margin-bottom: 6px; }
+  .tw-swatches { display: flex; gap: 8px; }
+  .tw-swatch {
+    width: 28px; height: 28px; border-radius: 6px; border: 2px solid transparent;
+    cursor: pointer; transition: border 0.15s; padding: 0;
+  }
+  .tw-swatch.active { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-light); }
+
+  /* Drawer */
+  .drawer-overlay { position: fixed; inset: 0; z-index: 300; display: flex; justify-content: flex-end; }
+  .drawer-backdrop { flex: 1; background: rgba(0,0,0,0.30); backdrop-filter: blur(2px); }
+  .drawer { width: 400px; background: var(--surface); display: flex; flex-direction: column; box-shadow: -6px 0 40px rgba(0,0,0,0.14); }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="data.js?v=5"></script>
+<script type="text/babel" src="components_v2.jsx"></script>
+<script type="text/babel" src="AnatomyFigure.jsx"></script>
+<script type="text/babel" src="PatientPanel.jsx"></script>
+<script type="text/babel" src="PatientView.jsx"></script>
+
+<script type="text/babel">
+
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "tema": "A"
+}/*EDITMODE-END*/;
+
+// ---- Drawer: cadastro de paciente ----
+const PatientDrawer = ({ onClose, onSave, initial }) => {
+  const [form, setForm] = React.useState(initial
+    ? { nome: initial.nome, nascimento: initial.nascimento, sexo: initial.sexo, telefone: initial.telefone || "", objetivo: initial.objetivo || "" }
+    : { nome: "", nascimento: "", sexo: "F", telefone: "", objetivo: "" }
+  );
+  const f = k => v => setForm(p => ({ ...p, [k]: v }));
+  return (
+    <div className="drawer-overlay">
+      <div className="drawer-backdrop" onClick={onClose} />
+      <div className="drawer">
+        <div style={{ padding: "18px 22px 14px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 }}>
+          <span style={{ fontWeight: 700, fontSize: 16 }}>{initial ? "Editar paciente" : "Novo paciente"}</span>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted)", fontSize: 22, lineHeight: 1 }}>×</button>
+        </div>
+        <div style={{ flex: 1, overflowY: "auto", padding: "20px 22px", display: "flex", flexDirection: "column", gap: 16 }}>
+          <Field label="Nome completo" value={form.nome} onChange={f("nome")} placeholder="Ex.: Ana Carolina Silva" />
+          <Field label="Data de nascimento" value={form.nascimento} onChange={f("nascimento")} type="date" />
+          <Select label="Sexo biológico" value={form.sexo} onChange={f("sexo")} options={[{ value: "F", label: "Feminino" }, { value: "M", label: "Masculino" }]} />
+          <Field label="Telefone" value={form.telefone} onChange={f("telefone")} placeholder="(11) 99999-9999" />
+          <Field label="Objetivo" value={form.objetivo} onChange={f("objetivo")} placeholder="Ex.: Perda de gordura" />
+        </div>
+        <div style={{ padding: "14px 22px", borderTop: "1px solid var(--border)", display: "flex", gap: 8, justifyContent: "flex-end", flexShrink: 0 }}>
+          <Btn variant="secondary" onClick={onClose}>Cancelar</Btn>
+          <Btn onClick={() => { onSave(form); onClose(); }} disabled={!form.nome || !form.nascimento}>Salvar paciente</Btn>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ---- Empty state central ----
+const CentralEmpty = ({ onNewPatient }) => (
+  <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg)" }}>
+    <div style={{ textAlign: "center", maxWidth: 320 }}>
+      <div style={{ fontSize: 52, marginBottom: 18, opacity: 0.25 }}>⚕</div>
+      <div style={{ fontSize: 18, fontWeight: 700, color: "var(--text)", marginBottom: 8, letterSpacing: "-0.02em" }}>
+        Selecione um paciente
+      </div>
+      <div style={{ fontSize: 13.5, color: "var(--muted)", marginBottom: 24, lineHeight: 1.6 }}>
+        Escolha um paciente na lista à esquerda para acessar suas avaliações e histórico.
+      </div>
+      <Btn onClick={onNewPatient}>+ Cadastrar novo paciente</Btn>
+    </div>
+  </div>
+);
+
+// ---- App ----
+const App = () => {
+  // ── Helpers de persistência ──────────────────────────────────────
+  // lsGet com migração transparente: antropo_* herda de zapantro_* na primeira leitura
+  const lsGet = (key, fallback) => {
+    try {
+      const raw = localStorage.getItem(key);
+      if (raw) return JSON.parse(raw);
+      if (key.startsWith("antropo_")) {
+        const legacyKey = key.replace(/^antropo_/, "zapantro_");
+        const legacyRaw = localStorage.getItem(legacyKey);
+        if (legacyRaw) {
+          localStorage.setItem(key, legacyRaw); // migra
+          return JSON.parse(legacyRaw);
+        }
+      }
+      return fallback;
+    } catch { return fallback; }
+  };
+  const lsSet = (key, value) => {
+    try { localStorage.setItem(key, JSON.stringify(value)); } catch {}
+  };
+
+  // ── Estado — inicializa do localStorage, cai no mock se vazio ────
+  const [patients,   setPatients]   = React.useState(() => lsGet("antropo_patients",   MOCK_PATIENTS));
+  const [avaliacoes, setAvaliacoes] = React.useState(() => lsGet("antropo_avaliacoes", MOCK_AVALIACOES));
+  const [selected,   setSelected]   = React.useState(() => {
+    const pid = lsGet("antropo_v2", {}).pid;
+    const all = lsGet("antropo_patients", MOCK_PATIENTS);
+    return all.find(p => p.id === pid) || null;
+  });
+  const [showDrawer, setShowDrawer] = React.useState(false);
+  const [editPatient,setEditPatient]= React.useState(null);
+  const [tweaks,     setTweaks]     = React.useState(TWEAK_DEFAULTS);
+  const [tweaksOpen, setTweaksOpen] = React.useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = React.useState(false);
+
+  // ── Persistência automática ───────────────────────────────────────
+  React.useEffect(() => { lsSet("antropo_patients",   patients);   }, [patients]);
+  React.useEffect(() => { lsSet("antropo_avaliacoes", avaliacoes); }, [avaliacoes]);
+  React.useEffect(() => { lsSet("antropo_v2", { pid: selected?.id }); }, [selected]);
+
+  // Theme
+  React.useEffect(() => { applyTheme(tweaks.tema); }, [tweaks.tema]);
+
+  // Tweaks host
+  React.useEffect(() => {
+    const h = e => {
+      if (e.data?.type === "__activate_edit_mode")   setTweaksOpen(true);
+      if (e.data?.type === "__deactivate_edit_mode") setTweaksOpen(false);
+    };
+    window.addEventListener("message", h);
+    window.parent.postMessage({ type: "__edit_mode_available" }, "*");
+    return () => window.removeEventListener("message", h);
+  }, []);
+
+  const updateTweak = (k, v) => setTweaks(p => {
+    const n = { ...p, [k]: v };
+    window.parent.postMessage({ type: "__edit_mode_set_keys", edits: n }, "*");
+    return n;
+  });
+
+  // Paciente: salvar novo ou editar existente
+  const handleSavePatient = (form) => {
+    if (editPatient) {
+      setPatients(ps => ps.map(p => p.id === editPatient.id ? { ...p, ...form } : p));
+      if (selected?.id === editPatient.id) setSelected(prev => ({ ...prev, ...form }));
+      setEditPatient(null);
+    } else {
+      const np = { id: Date.now(), ...form, ativo: true };
+      setPatients(p => [...p, np]);
+      setSelected(np);
+    }
+  };
+
+  // Paciente: excluir
+  const handleDeletePatient = (pid) => {
+    setPatients(ps => ps.filter(p => p.id !== pid));
+    setAvaliacoes(avs => avs.filter(a => a.paciente_id !== pid));
+    if (selected?.id === pid) setSelected(null);
+  };
+
+  // Avaliação: salvar (nova ou editada)
+  const handleSaveAv = (form) => {
+    const nv = {
+      id: form._id || Date.now(), paciente_id: selected.id,
+      data: form.data, peso: parseFloat(form.peso), altura: parseFloat(form.altura),
+      dobras: form.dobras, circs: form.circs,
+    };
+    if (form._id) {
+      setAvaliacoes(avs => avs.map(a => a.id === form._id ? nv : a));
+    } else {
+      setAvaliacoes(avs => [...avs, nv]);
+    }
+  };
+
+  // Avaliação: excluir
+  const handleDeleteAv = (avId) => {
+    setAvaliacoes(avs => avs.filter(a => a.id !== avId));
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", height: "100vh", overflow: "hidden" }}>
+
+      {/* TOP BAR */}
+      <header id="top-bar" style={{
+        height: 50, background: "var(--topbar)", flexShrink: 0,
+        display: "flex", alignItems: "center", padding: "0 20px", gap: 14,
+        borderBottom: "1px solid rgba(255,255,255,0.05)",
+      }}>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+          <span style={{ fontWeight: 800, fontSize: 17, color: "#fff", letterSpacing: "-0.04em" }}>antropo</span>
+          <span style={{ fontSize: 9.5, color: "var(--topbar-text)", letterSpacing: "0.14em", textTransform: "uppercase", opacity: 0.65 }}>antropometria</span>
+        </div>
+
+        {/* Toggle sidebar */}
+        <button onClick={() => setSidebarCollapsed(c => !c)} title={sidebarCollapsed ? "Expandir painel" : "Recolher painel"} style={{
+          background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.10)",
+          borderRadius: 6, width: 32, height: 32, cursor: "pointer",
+          color: "var(--topbar-text)", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center",
+          transition: "background 0.15s", flexShrink: 0,
+        }}>
+          {sidebarCollapsed ? "▶" : "◀"}
+        </button>        <div style={{ flex: 1 }} />
+        {/* Theme dots */}
+        <div className="tw-swatches" style={{ gap: 6 }}>
+          {Object.entries(THEMES_V2).map(([k, t]) => (
+            <button key={k} title={t.name} className={`tw-swatch ${tweaks.tema === k ? "active" : ""}`}
+              onClick={() => updateTweak("tema", k)}
+              style={{ background: t.accent }} />
+          ))}
+        </div>
+        <button onClick={() => setShowDrawer(true)} style={{
+          background: "var(--accent)", color: "var(--accent-text)",
+          border: "none", borderRadius: 6, padding: "6px 14px",
+          fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+        }}>+ Novo paciente</button>
+      </header>
+
+      {/* BODY: painel duplo */}
+      <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+
+        {/* Painel esquerdo — lista de pacientes */}
+        <div id="patient-panel" style={{
+          width: sidebarCollapsed ? 0 : 288,
+          overflow: "hidden",
+          flexShrink: 0,
+          transition: "width 0.22s cubic-bezier(0.4,0,0.2,1)",
+        }}>
+          {!sidebarCollapsed && <PatientPanel
+            patients={patients}
+            avaliacoes={avaliacoes}
+            selectedId={selected?.id}
+            onSelect={setSelected}
+            onEdit={p => { setEditPatient(p); setShowDrawer(true); }}
+            onDelete={handleDeletePatient}
+          />}
+        </div>
+
+        {/* Painel direito — conteúdo do paciente */}
+        {selected
+          ? <PatientView
+              patient={selected}
+              avaliacoes={avaliacoes}
+              onSave={handleSaveAv}
+              onDeleteAv={handleDeleteAv}
+            />
+          : <CentralEmpty onNewPatient={() => setShowDrawer(true)} />
+        }
+      </div>
+
+      {/* Drawer cadastro/edição */}
+      {showDrawer && <PatientDrawer
+        onClose={() => { setShowDrawer(false); setEditPatient(null); }}
+        onSave={handleSavePatient}
+        initial={editPatient}
+      />}
+
+      {/* Tweaks panel */}
+      <div id="tweaks-panel" className={`no-print ${tweaksOpen ? "visible" : ""}`}>
+        <div style={{ fontWeight: 700, fontSize: 14, color: "var(--text)" }}>Tweaks</div>
+        <div>
+          <div className="tw-label">Tema visual</div>
+          <div className="tw-swatches">
+            {Object.entries(THEMES_V2).map(([k, t]) => (
+              <button key={k} title={t.name} className={`tw-swatch ${tweaks.tema === k ? "active" : ""}`}
+                onClick={() => updateTweak("tema", k)}
+                style={{ background: t.topbar, position: "relative" }}>
+                <span style={{ position: "absolute", bottom: 2, right: 2, width: 8, height: 8, borderRadius: "50%", background: t.accent }} />
+              </button>
+            ))}
+          </div>
+          <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 6 }}>
+            {THEMES_V2[tweaks.tema]?.name}
+          </div>
+        </div>
+        <div style={{ fontSize: 11, color: "var(--muted)", borderTop: "1px solid var(--border)", paddingTop: 10 }}>
+          Layout v2 · painel duplo
+        </div>
+      </div>
+    </div>
+  );
+};
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+
+// ── Print fix: sobrescreve inline styles do React antes de imprimir ──────────
+const _printOverrides = [];
+
+window.addEventListener('beforeprint', () => {
+  _printOverrides.length = 0;
+
+  // 1. Esconder explicitamente todos os elementos no-print e o tweaks panel
+  document.querySelectorAll('.no-print, #tweaks-panel, #top-bar, #patient-panel').forEach(el => {
+    _printOverrides.push({ el, saved: { display: el.style.display, visibility: el.style.visibility } });
+    el.style.display = 'none';
+    el.style.visibility = 'hidden';
+  });
+
+  // 2. Remover overflow/height constraints dos containers React
+  document.querySelectorAll('*').forEach(el => {
+    if (_printOverrides.some(o => o.el === el)) return; // já tratado acima
+    const s = el.style;
+    const saved = {};
+    let changed = false;
+
+    if (s.overflow && s.overflow !== 'visible') {
+      saved.overflow = s.overflow; s.overflow = 'visible'; changed = true;
+    }
+    if (s.overflowY && s.overflowY !== 'visible') {
+      saved.overflowY = s.overflowY; s.overflowY = 'visible'; changed = true;
+    }
+    if (s.overflowX && s.overflowX !== 'visible') {
+      saved.overflowX = s.overflowX; s.overflowX = 'visible'; changed = true;
+    }
+    if (s.height && (s.height === '100%' || s.height === '100vh')) {
+      saved.height = s.height; s.height = 'auto'; changed = true;
+    }
+    if (s.maxHeight && s.maxHeight !== 'none') {
+      saved.maxHeight = s.maxHeight; s.maxHeight = 'none'; changed = true;
+    }
+    if (s.flex === '1' || s.flex === '1 1 0%' || s.flex === '1 1 auto') {
+      saved.flex = s.flex; s.flex = 'none'; changed = true;
+    }
+
+    if (changed) _printOverrides.push({ el, saved });
+  });
+});
+
+window.addEventListener('afterprint', () => {
+  _printOverrides.forEach(({ el, saved }) => Object.assign(el.style, saved));
+  _printOverrides.length = 0;
+});
+</script>
+</body>
+</html>
