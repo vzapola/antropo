@@ -233,7 +233,7 @@ const App = () => {
   React.useEffect(() => { lsSet("antropo_v2", { pid: selected?.id }); }, [selected]);
 
   // Theme
-  React.useEffect(() => { applyTheme(tweaks.tema); }, [tweaks.tema]);
+  React.useEffect(() => { applyTheme("A"); }, []);
 
   // Tweaks host
   React.useEffect(() => {
@@ -314,14 +314,6 @@ const App = () => {
         }}>
           {sidebarCollapsed ? "▶" : "◀"}
         </button>        <div style={{ flex: 1 }} />
-        {/* Theme dots */}
-        <div className="tw-swatches" style={{ gap: 6 }}>
-          {Object.entries(THEMES_V2).map(([k, t]) => (
-            <button key={k} title={t.name} className={`tw-swatch ${tweaks.tema === k ? "active" : ""}`}
-              onClick={() => updateTweak("tema", k)}
-              style={{ background: t.accent }} />
-          ))}
-        </div>
         <button onClick={() => setShowDrawer(true)} style={{
           background: "var(--accent)", color: "var(--accent-text)",
           border: "none", borderRadius: 6, padding: "6px 14px",
@@ -371,21 +363,6 @@ const App = () => {
       {/* Tweaks panel */}
       <div id="tweaks-panel" className={`no-print ${tweaksOpen ? "visible" : ""}`}>
         <div style={{ fontWeight: 700, fontSize: 14, color: "var(--text)" }}>Tweaks</div>
-        <div>
-          <div className="tw-label">Tema visual</div>
-          <div className="tw-swatches">
-            {Object.entries(THEMES_V2).map(([k, t]) => (
-              <button key={k} title={t.name} className={`tw-swatch ${tweaks.tema === k ? "active" : ""}`}
-                onClick={() => updateTweak("tema", k)}
-                style={{ background: t.topbar, position: "relative" }}>
-                <span style={{ position: "absolute", bottom: 2, right: 2, width: 8, height: 8, borderRadius: "50%", background: t.accent }} />
-              </button>
-            ))}
-          </div>
-          <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 6 }}>
-            {THEMES_V2[tweaks.tema]?.name}
-          </div>
-        </div>
         <div style={{ fontSize: 11, color: "var(--muted)", borderTop: "1px solid var(--border)", paddingTop: 10 }}>
           Layout v2 · painel duplo
         </div>

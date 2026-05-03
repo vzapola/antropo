@@ -102,17 +102,6 @@ const TopBar = ({ onNewPatient, theme, setTheme }) => (
 
     <div style={{ flex: 1 }} />
 
-    {/* Tema toggle */}
-    <div style={{ display: "flex", gap: 4 }}>
-      {Object.entries(THEMES_V2).map(([k, t]) => (
-        <button key={k} title={t.name} onClick={() => setTheme(k)} style={{
-          width: 20, height: 20, borderRadius: 4,
-          background: t.accent, border: theme === k ? "2px solid #fff" : "2px solid transparent",
-          cursor: "pointer", padding: 0, transition: "border 0.15s",
-        }} />
-      ))}
-    </div>
-
     <button onClick={onNewPatient} style={{
       background: "var(--accent)", color: "var(--accent-text)",
       border: "none", borderRadius: 6, padding: "7px 14px",
