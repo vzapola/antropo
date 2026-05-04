@@ -695,18 +695,25 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, tex
 
   // ── Mini gráfico SVG inline ──────────────────────────────────────
   const MiniChart = ({ unit, data, bands, fallbackColor='#2563eb' }) => {
-    if (!data || data.length < 2) return (
+    if (!data || data.length === 0) return (
       <div style={{ border:'1px solid #e8e8e8', borderRadius:8, padding:'10px 12px', background:'#fafafa' }}>
-        <div style={{ fontSize:9.5, color:'#aaa' }}>Mínimo 2 avaliações</div>
+        <div style={{ fontSize:9.5, color:'#aaa' }}>Sem dados registrados</div>
       </div>
     );
     const W=280, H=110, pad={t:20,r:8,b:22,l:36};
     const vals = data.map(d=>d.value);
     const bMin = bands ? Math.min(...bands.map(b=>b.min)) : Math.min(...vals);
     const bMax = bands ? Math.max(...bands.filter(b=>b.max<9).map(b=>b.max)) : Math.max(...vals);
-    const allMin = Math.min(...vals, bMin), allMax = Math.max(...vals, bMax);
+    let allMin = Math.min(...vals, bMin), allMax = Math.max(...vals, bMax);
+    if (data.length === 1 && !bands) {
+      const halfRange = Math.max(vals[0] * 0.05, 1);
+      allMin = vals[0] - halfRange;
+      allMax = vals[0] + halfRange;
+    }
     const range = allMax - allMin || 1;
-    const xS = i => pad.l + (i/(data.length-1))*(W-pad.l-pad.r);
+    const xS = i => data.length === 1
+      ? pad.l + (W - pad.l - pad.r) / 2
+      : pad.l + (i/(data.length-1))*(W-pad.l-pad.r);
     const yS = v => H-pad.b-((v-allMin)/range)*(H-pad.t-pad.b);
     const pts = data.map((d,i)=>[xS(i),yS(d.value)]);
     const poly = pts.map(p=>p.join(',')).join(' ');
@@ -743,10 +750,9 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, tex
               </g>
             );
           })}
-          {/* Área */}
-          <path d={[`M ${pts[0][0]},${H-pad.b}`,...pts.map(p=>`L ${p[0]},${p[1]}`),`L ${pts[pts.length-1][0]},${H-pad.b}`,'Z'].join(' ')} fill={`url(#${gid})`}/>
-          {/* Linha */}
-          <polyline points={poly} fill="none" stroke={lineColor} strokeWidth={1.5} strokeLinejoin="round" strokeLinecap="round" opacity="0.4"/>
+          {/* Área e linha — só com 2+ pontos */}
+          {data.length >= 2 && <path d={[`M ${pts[0][0]},${H-pad.b}`,...pts.map(p=>`L ${p[0]},${p[1]}`),`L ${pts[pts.length-1][0]},${H-pad.b}`,'Z'].join(' ')} fill={`url(#${gid})`}/>}
+          {data.length >= 2 && <polyline points={poly} fill="none" stroke={lineColor} strokeWidth={1.5} strokeLinejoin="round" strokeLinecap="round" opacity="0.4"/>}
           {/* Pontos coloridos por faixa */}
           {pts.map((p,i)=>{
             const ptColor = getBandColor(data[i].value, bands, fallbackColor);
@@ -1117,15 +1123,22 @@ const HistoricoTab = ({ patient, avaliacoes, protoRef }) => {
   };
 
   const ChartWithBands = ({ data, color, bands, height = 140 }) => {
-    if (!data || data.length < 2) return <div style={{ height, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--muted)", fontSize: 12 }}>2+ avaliações necessárias</div>;
+    if (!data || data.length === 0) return <div style={{ height, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--muted)", fontSize: 12 }}>Sem dados registrados</div>;
     const W = 420, H = height, pad = { t: 20, r: 12, b: 28, l: 44 };
     const vals = data.map(d => d.value);
     const bMin = bands ? Math.min(...bands.map(b => b.min)) : Math.min(...vals);
     const bMax = bands ? Math.max(...bands.filter(b=>b.max<999).map(b => b.max)) : Math.max(...vals);
-    const allMin = Math.min(...vals, bMin);
-    const allMax = Math.max(...vals, bMax);
+    let allMin = Math.min(...vals, bMin);
+    let allMax = Math.max(...vals, bMax);
+    if (data.length === 1 && !bands) {
+      const halfRange = Math.max(vals[0] * 0.05, 1);
+      allMin = vals[0] - halfRange;
+      allMax = vals[0] + halfRange;
+    }
     const range = allMax - allMin || 1;
-    const xS = i => pad.l + (i / (data.length - 1)) * (W - pad.l - pad.r);
+    const xS = i => data.length === 1
+      ? pad.l + (W - pad.l - pad.r) / 2
+      : pad.l + (i / (data.length - 1)) * (W - pad.l - pad.r);
     const yS = v => H - pad.b - ((v - allMin) / range) * (H - pad.t - pad.b);
     const pts = data.map((d, i) => [xS(i), yS(d.value)]);
     const poly = pts.map(p => p.join(",")).join(" ");
@@ -1156,8 +1169,8 @@ const HistoricoTab = ({ patient, avaliacoes, protoRef }) => {
             <text x={pad.l-6} y={yS(v)+4} textAnchor="end" fontSize={9.5} fill="var(--muted)" fontFamily="'JetBrains Mono',monospace">{fmtN(v, data[0].dec ?? 1)}</text>
           </g>
         ); })}
-        <path d={area} fill={`url(#${gid})`} />
-        <polyline points={poly} fill="none" stroke={color} strokeWidth={1.5} strokeLinejoin="round" strokeLinecap="round" strokeDasharray="none" opacity="0.35" />
+        {data.length >= 2 && <path d={area} fill={`url(#${gid})`} />}
+        {data.length >= 2 && <polyline points={poly} fill="none" stroke={color} strokeWidth={1.5} strokeLinejoin="round" strokeLinecap="round" strokeDasharray="none" opacity="0.35" />}
         {pts.map((p, i) => {
           const ptColor = getBandColor(data[i].value, bands, color);
           return (
