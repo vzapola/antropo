@@ -795,7 +795,7 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, tex
 
       {/* ── Tarja paciente ── */}
       <div style={{ background:'#1a1a1a',borderRadius:8,padding:'12px 18px',marginBottom:10 }}>
-        <div style={{ display:'grid',gridTemplateColumns:'2fr 1fr 1fr 1fr 1fr',gap:'3px 14px' }}>
+        <div style={{ display:'grid',gridTemplateColumns:'1.8fr 1.2fr 1.8fr 1.8fr 0.6fr',gap:'3px 16px' }}>
           {[
             { l:'Paciente', v:patient.nome, big:true },
             { l:'Sexo · Idade', v:`${patient.sexo==='F'?'Feminino':'Masculino'} · ${idade} anos` },
@@ -803,9 +803,9 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, tex
             { l:'Período', v:`${_fmtData(firstAv.data)} → ${_fmtData(lastAv.data)}` },
             { l:'Avaliações', v:`${avs.length}` },
           ].map(x=>(
-            <div key={x.l}>
+            <div key={x.l} style={{ minWidth:0 }}>
               <div style={{ fontSize:8.5,color:'#aaa',textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:1 }}>{x.l}</div>
-              <div style={{ fontSize:x.big?13:11.5,fontWeight:700,color:'#fff',lineHeight:1.2 }}>{x.v}</div>
+              <div style={{ fontSize:x.big?13:11.5,fontWeight:700,color:'#fff',lineHeight:1.3,overflowWrap:'break-word' }}>{x.v}</div>
             </div>
           ))}
         </div>
