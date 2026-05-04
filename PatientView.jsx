@@ -697,7 +697,6 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, tex
   const MiniChart = ({ unit, data, bands, fallbackColor='#2563eb' }) => {
     if (!data || data.length < 2) return (
       <div style={{ border:'1px solid #e8e8e8', borderRadius:8, padding:'10px 12px', background:'#fafafa' }}>
-        <div style={{ fontSize:10, fontWeight:700, color:'#555', marginBottom:4 }}>{title}</div>
         <div style={{ fontSize:9.5, color:'#aaa' }}>Mínimo 2 avaliações</div>
       </div>
     );
