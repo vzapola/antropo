@@ -394,7 +394,7 @@ const AvaliacaoFormTab = ({ patient, avaliacao: initialAv, isNew, onSave, protoR
                       <input type="number" value={form.circs[c.key] ?? ""} placeholder="0"
                         onChange={e => setC(c.key)(e.target.value)}
                         style={{ width: "100%", padding: "8px 36px 8px 10px", borderRadius: 6, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)", fontSize: 13.5, fontFamily: "inherit", outline: "none", boxSizing: "border-box" }}
-                        onFocus={e => { e.target.style.borderColor = "var(--accent)"; e.target.style.boxShadow = "0 0 0 2px var(--accent-light)"; }}
+                        onFocus={e => { setFocusedKey(c.key); e.target.style.borderColor = "var(--accent)"; e.target.style.boxShadow = "0 0 0 2px var(--accent-light)"; }}
                         onBlur={e => { e.target.style.borderColor = "var(--border)"; e.target.style.boxShadow = "none"; }}
                       />
                       <span style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", fontSize: 11.5, color: "var(--muted)", pointerEvents: "none" }}>cm</span>
