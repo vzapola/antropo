@@ -560,7 +560,8 @@ const BdgPR = ({ tag, label }) => {
   return <span style={{ fontSize:10.5,fontWeight:700,padding:'2px 8px',borderRadius:4,color:c[tag]||c.gray,background:b[tag]||b.gray,whiteSpace:'nowrap' }}>{label}</span>;
 };
 
-const EvoLinePR = ({ v0, vN, unit='', dec=1, lowerIsBetter=false }) => {
+const EvoLinePR = ({ v0, vN, unit='', dec=1, lowerIsBetter=false, isSingle=false }) => {
+  if (isSingle) return null;
   if (v0==null||vN==null||isNaN(v0)||isNaN(vN)) return null;
   const d=vN-v0, isNeutral=Math.abs(d)<0.01;
   const isGood=isNeutral?true:(lowerIsBetter?d<0:d>0);
@@ -574,7 +575,7 @@ const EvoLinePR = ({ v0, vN, unit='', dec=1, lowerIsBetter=false }) => {
   );
 };
 
-const ReportCard = ({ label, value, unit, badge, explain, idealRange, v0, vN, vUnit='', vDec=1, lowerIsBetter=false, textKey, editMode, onTextChange }) => (
+const ReportCard = ({ label, value, unit, badge, explain, idealRange, v0, vN, vUnit='', vDec=1, lowerIsBetter=false, textKey, editMode, onTextChange, isSingle=false }) => (
   <div style={{ border:'1px solid #e0e0e0',borderRadius:8,padding:'11px 13px',breakInside:'avoid' }}>
     <div style={{ fontSize:9,fontWeight:700,color:'#888',textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:4 }}>{label}</div>
     <div style={{ display:'flex',alignItems:'baseline',gap:8,marginBottom:3 }}>
@@ -582,7 +583,7 @@ const ReportCard = ({ label, value, unit, badge, explain, idealRange, v0, vN, vU
       {unit&&<span style={{ fontSize:11,color:'#888' }}>{unit}</span>}
       {badge&&<BdgPR tag={badge.tag} label={badge.label}/>}
     </div>
-    <EvoLinePR v0={v0} vN={vN} unit={vUnit} dec={vDec} lowerIsBetter={lowerIsBetter}/>
+    <EvoLinePR v0={v0} vN={vN} unit={vUnit} dec={vDec} lowerIsBetter={lowerIsBetter} isSingle={isSingle}/>
     {editMode
       ? <AutoTextarea value={explain} onChange={v => onTextChange(textKey, v)}
           style={taStylePR({ fontSize:10,color:'#333',lineHeight:1.5,marginBottom:idealRange?3:0 })} />
@@ -628,12 +629,14 @@ const DEFAULT_REPORT_TEXTS = {
   cintura:   "Perímetro medido na região de menor circunferência do tronco, entre a última costela e a crista ilíaca. Reflete o acúmulo de gordura na região abdominal.",
   rcq:       "Razão entre a circunferência da cintura e a do quadril. Indica o padrão de distribuição da gordura corporal, classificado como androide (acúmulo central) ou ginoide (acúmulo periférico).",
   rce:       "Razão entre a circunferência da cintura e a estatura. Um valor abaixo de 0,50 indica que a cintura é menor que metade da altura, o que é considerado adequado para a maioria dos adultos.",
+  isak8:     "Soma das 8 dobras cutâneas padronizadas pelo protocolo ISAK (International Society for the Advancement of Kinanthropometry). Reflete o volume total de gordura subcutânea nos pontos tricipital, subescapular, bíceps, suprailíaca, supraespinal, abdominal, coxa e panturrilha. Valores menores indicam menor acúmulo de gordura subcutânea.",
   notas:     "Composição corporal estimada pelo protocolo indicado, com conversão por Siri (1961). Massa muscular esquelética calculada por Lee et al. (2000). IMC classificado conforme OMS (2006). Faixa de peso ideal para IMC entre 18,5 e 24,9 kg/m². Os resultados são estimativas obtidas a partir de medidas externas e não substituem exames laboratoriais nem avaliação clínica individualizada.",
 };
 
 // ---- Relatório impresso orientado ao paciente ----
 const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, texts = DEFAULT_REPORT_TEXTS, editMode = false, onTextChange = () => {} }) => {
   if (!avs.length) return null;
+  const isSingle = avs.length === 1;
   const firstAv = avs[0], lastAv = avs[avs.length - 1];
   const r0 = calcularTudo(firstAv.peso, firstAv.altura, patient.sexo, idade, firstAv.dobras, firstAv.circs);
   const rN = calcularTudo(lastAv.peso, lastAv.altura, patient.sexo, idade, lastAv.dobras, lastAv.circs);
@@ -800,7 +803,7 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, tex
             { l:'Paciente', v:patient.nome, big:true },
             { l:'Sexo · Idade', v:`${patient.sexo==='F'?'Feminino':'Masculino'} · ${idade} anos` },
             { l:'Objetivo', v:patient.objetivo },
-            { l:'Período', v:`${_fmtData(firstAv.data)} → ${_fmtData(lastAv.data)}` },
+            { l:'Período', v: isSingle ? _fmtData(firstAv.data) : `${_fmtData(firstAv.data)} → ${_fmtData(lastAv.data)}` },
             { l:'Avaliações', v:`${avs.length}` },
           ].map(x=>(
             <div key={x.l} style={{ minWidth:0 }}>
@@ -840,7 +843,7 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, tex
             <ReportCard label="Peso Corporal" value={n(lastAv.peso)} unit="kg"
               explain={texts.peso} textKey="peso" editMode={editMode} onTextChange={onTextChange}
               idealRange={fp?`${n(fp[0])}–${n(fp[1])} kg para sua altura`:null}
-              v0={firstAv.peso} vN={lastAv.peso} vUnit="kg" lowerIsBetter={true}/>
+              v0={firstAv.peso} vN={lastAv.peso} vUnit="kg" lowerIsBetter={true} isSingle={isSingle}/>
             <MiniChart unit="kg" data={chartSeries(av=>av.peso)} fallbackColor="#2563eb"/>
           </div>
 
@@ -849,7 +852,7 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, tex
             <ReportCard label="Índice de Massa Corporal (IMC)" value={n(rN.imc)} unit="kg/m²" badge={rN.classIMC}
               explain={texts.imc} textKey="imc" editMode={editMode} onTextChange={onTextChange}
               idealRange="18,5 – 24,9 kg/m²"
-              v0={r0.imc} vN={rN.imc} lowerIsBetter={true}/>
+              v0={r0.imc} vN={rN.imc} lowerIsBetter={true} isSingle={isSingle}/>
             <MiniChart unit="kg/m²" data={chartSeries(av=>calcIMC(av.peso,av.altura))} bands={IMC_BANDS} fallbackColor="#16a34a"/>
           </div>
 
@@ -858,7 +861,7 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, tex
             <ReportCard label="Percentual de Gordura" value={gN!=null?n(gN):'—'} unit="%" badge={gN!=null?classPctG(gN,patient.sexo):null}
               explain={texts.pctG} textKey="pctG" editMode={editMode} onTextChange={onTextChange}
               idealRange={patient.sexo==='F'?'21–25% (boa forma)':'14–18% (boa forma)'}
-              v0={g0} vN={gN} vUnit="%" lowerIsBetter={true}/>
+              v0={g0} vN={gN} vUnit="%" lowerIsBetter={true} isSingle={isSingle}/>
             <MiniChart unit="%" data={chartSeries(av=>getProtoG(av))} bands={pctgBands} fallbackColor="#dc2626"/>
           </div>
 
@@ -866,7 +869,7 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, tex
           <div style={{ breakInside:'avoid', display:'flex', flexDirection:'column', gap:6 }}>
             <ReportCard label="Gordura em Quilos" value={gN!=null?n(lastAv.peso*gN/100):'—'} unit="kg"
               explain={texts.gordKg} textKey="gordKg" editMode={editMode} onTextChange={onTextChange}
-              v0={g0!=null?firstAv.peso*g0/100:null} vN={gN!=null?lastAv.peso*gN/100:null} vUnit="kg" lowerIsBetter={true}/>
+              v0={g0!=null?firstAv.peso*g0/100:null} vN={gN!=null?lastAv.peso*gN/100:null} vUnit="kg" lowerIsBetter={true} isSingle={isSingle}/>
             <MiniChart unit="kg" data={chartSeries(av=>{const g=getProtoG(av);return g!=null?av.peso*g/100:null;})} fallbackColor="#dc2626"/>
           </div>
 
@@ -874,7 +877,7 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, tex
           <div style={{ breakInside:'avoid', display:'flex', flexDirection:'column', gap:6 }}>
             <ReportCard label="Massa Magra" value={gN!=null?n(lastAv.peso*(1-gN/100)):'—'} unit="kg"
               explain={texts.massaMagra} textKey="massaMagra" editMode={editMode} onTextChange={onTextChange}
-              v0={g0!=null?firstAv.peso*(1-g0/100):null} vN={gN!=null?lastAv.peso*(1-gN/100):null} vUnit="kg" lowerIsBetter={false}/>
+              v0={g0!=null?firstAv.peso*(1-g0/100):null} vN={gN!=null?lastAv.peso*(1-gN/100):null} vUnit="kg" lowerIsBetter={false} isSingle={isSingle}/>
             <MiniChart unit="kg" data={chartSeries(av=>{const g=getProtoG(av);return g!=null?av.peso*(1-g/100):null;})} fallbackColor="#9333ea"/>
           </div>
 
@@ -882,9 +885,19 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, tex
           <div style={{ breakInside:'avoid', display:'flex', flexDirection:'column', gap:6 }}>
             <ReportCard label="Músculo Esquelético" value={n(rN.mm)} unit="kg"
               explain={texts.musculo} textKey="musculo" editMode={editMode} onTextChange={onTextChange}
-              v0={r0.mm} vN={rN.mm} vUnit="kg" lowerIsBetter={false}/>
+              v0={r0.mm} vN={rN.mm} vUnit="kg" lowerIsBetter={false} isSingle={isSingle}/>
             <MiniChart unit="kg" data={chartSeries(av=>calcularTudo(av.peso,av.altura,patient.sexo,idade,av.dobras,av.circs).mm)} fallbackColor="#0891b2"/>
           </div>
+
+          {/* Soma 8 dobras ISAK + gráfico */}
+          {rN.isak8 != null && (
+            <div style={{ breakInside:'avoid', display:'flex', flexDirection:'column', gap:6 }}>
+              <ReportCard label="Soma 8 Dobras (ISAK)" value={n(rN.isak8, 0)} unit="mm"
+                explain={texts.isak8} textKey="isak8" editMode={editMode} onTextChange={onTextChange}
+                v0={r0.isak8} vN={rN.isak8} vUnit="mm" vDec={0} lowerIsBetter={true} isSingle={isSingle}/>
+              <MiniChart unit="mm" data={chartSeries(av=>calcISAK8(av.dobras||{}), 0)} fallbackColor="#0d9488"/>
+            </div>
+          )}
 
         </div>
 
@@ -900,7 +913,7 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, tex
             <ReportCard label="Circunferência da Cintura" value={n(lastAv.circs?.cintura,0)} unit="cm"
               explain={texts.cintura} textKey="cintura" editMode={editMode} onTextChange={onTextChange}
               idealRange={patient.sexo==='F'?'Menos de 80 cm':'Menos de 94 cm'}
-              v0={firstAv.circs?.cintura} vN={lastAv.circs?.cintura} vUnit="cm" vDec={0} lowerIsBetter={true}/>
+              v0={firstAv.circs?.cintura} vN={lastAv.circs?.cintura} vUnit="cm" vDec={0} lowerIsBetter={true} isSingle={isSingle}/>
             <MiniChart unit="cm" data={chartSeries(av=>av.circs?.cintura,0)} fallbackColor="#d97706"/>
           </div>
 
@@ -909,7 +922,7 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, tex
             <ReportCard label="Distribuição de Gordura no Corpo (RCQ)" value={n(rN.rcq,2)} unit="" badge={classRCQ(rN.rcq,patient.sexo)}
               explain={texts.rcq} textKey="rcq" editMode={editMode} onTextChange={onTextChange}
               idealRange={patient.sexo==='F'?'Abaixo de 0,80':'Abaixo de 0,90'}
-              v0={r0.rcq} vN={rN.rcq} vUnit="" vDec={2} lowerIsBetter={true}/>
+              v0={r0.rcq} vN={rN.rcq} vUnit="" vDec={2} lowerIsBetter={true} isSingle={isSingle}/>
             <MiniChart unit="" data={chartSeries(av=>calcularTudo(av.peso,av.altura,patient.sexo,idade,av.dobras,av.circs).rcq,2)} bands={rcqBands} fallbackColor="#be123c"/>
           </div>
 
@@ -918,7 +931,7 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, tex
             <ReportCard label="Gordura Abdominal vs. Altura (RCE)" value={n(rN.rce,2)} unit="" badge={classRCE(rN.rce)}
               explain={texts.rce} textKey="rce" editMode={editMode} onTextChange={onTextChange}
               idealRange="Abaixo de 0,50"
-              v0={r0.rce} vN={rN.rce} vUnit="" vDec={2} lowerIsBetter={true}/>
+              v0={r0.rce} vN={rN.rce} vUnit="" vDec={2} lowerIsBetter={true} isSingle={isSingle}/>
             <MiniChart unit="" data={chartSeries(av=>calcularTudo(av.peso,av.altura,patient.sexo,idade,av.dobras,av.circs).rce,2)} bands={RCE_BANDS} fallbackColor="#0369a1"/>
           </div>
 
@@ -1113,6 +1126,7 @@ const HistoricoTab = ({ patient, avaliacoes, protoRef }) => {
     { title: "Cintura", unit: "cm", dec: 0, height: 140, data: series(av => av.circs?.cintura, 0), color: COLS[5], bands: null },
     { title: "RCQ", unit: "", dec: 2, height: 180, data: series(av => calcularTudo(av.peso, av.altura, patient.sexo, idade, av.dobras, av.circs).rcq, 2), color: COLS[6], bands: patient.sexo === "F" ? RCQ_BANDS_F : RCQ_BANDS_M },
     { title: "RCE", unit: "", dec: 2, height: 180, data: series(av => calcularTudo(av.peso, av.altura, patient.sexo, idade, av.dobras, av.circs).rce, 2), color: COLS[7], bands: RCE_BANDS },
+    { title: "Soma 8 Dobras (ISAK)", unit: "mm", dec: 0, height: 140, data: series(av => calcISAK8(av.dobras || {}), 0), color: "#0d9488", bands: null },
   ];
 
   // Retorna a cor da faixa em que o valor cai
