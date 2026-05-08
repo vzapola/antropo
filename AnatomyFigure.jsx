@@ -19,13 +19,12 @@ const AnatomyFigure = ({ mode = "dobras", focusedKey = null }) => {
     { n: 1,  key: "tricipital",   label: "Tricipital",    view: "B", cx: 40,  cy: 140 },
     { n: 2,  key: "biceps",       label: "Bíceps",        view: "F", cx: 40,  cy: 138 },
     { n: 3,  key: "subescapular", label: "Subescapular",  view: "B", cx: 88,  cy: 142 },
-    { n: 4,  key: "peitoral",     label: "Peitoral",      view: "F", cx: 76,  cy: 122 },
-    { n: 5,  key: "axilar",       label: "Axilar média",  view: "F", cx: 62,  cy: 138 },
-    { n: 6,  key: "suprailíaca",  label: "Suprailíaca",   view: "F", cx: 136, cy: 200 },
-    { n: 7,  key: "supraespinal", label: "Supraespinal",  view: "F", cx: 132, cy: 210 },
-    { n: 8,  key: "abdominal",    label: "Abdominal",     view: "F", cx: 108, cy: 178 },
-    { n: 9,  key: "coxa",         label: "Coxa anterior", view: "F", cx: 84,  cy: 290 },
-    { n: 10, key: "panturrilha",  label: "Panturrilha",   view: "F", cx: 82,  cy: 365 },
+    { n: 4,  key: "axilar",       label: "Axilar média",  view: "F", cx: 62,  cy: 138 },
+    { n: 5,  key: "suprailíaca",  label: "Suprailíaca",   view: "F", cx: 136, cy: 200 },
+    { n: 6,  key: "supraespinal", label: "Supraespinal",  view: "F", cx: 132, cy: 210 },
+    { n: 7,  key: "abdominal",    label: "Abdominal",     view: "F", cx: 108, cy: 178 },
+    { n: 8,  key: "coxa",         label: "Coxa anterior", view: "F", cx: 84,  cy: 290 },
+    { n: 9,  key: "panturrilha",  label: "Panturrilha",   view: "F", cx: 82,  cy: 365 },
   ];
 
   // Linhas de circunferências ajustadas:
