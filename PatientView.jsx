@@ -1092,7 +1092,7 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, tex
       {/* ── Resumo de evolução (IA) ── */}
       {aiSummary && (
         <div style={{ marginTop:14, breakInside:'avoid', padding:'10px 13px', background:'#f0f9ff', borderRadius:6, border:'1px solid #bae6fd', borderLeft:'3px solid #0284c7' }}>
-          <div style={{ fontSize:8.5, fontWeight:700, color:'#0284c7', textTransform:'uppercase', letterSpacing:'0.07em', marginBottom:5 }}>✦ Resumo de Evolução · Gerado com IA · Revisão obrigatória</div>
+          <div style={{ fontSize:8.5, fontWeight:700, color:'#0284c7', textTransform:'uppercase', letterSpacing:'0.07em', marginBottom:5 }}>✦ Resumo de Evolução</div>
           <div style={{ fontSize:9.5, color:'#1e3a5f', lineHeight:1.75 }}>
             {aiSummary.split('\n').map((line, i) => {
               if (!line.trim()) return <div key={i} style={{ height:4 }} />;
