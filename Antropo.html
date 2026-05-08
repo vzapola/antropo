@@ -98,10 +98,11 @@
 
     @page { margin: 12mm 10mm; size: A4; }
 
-    /* Evitar página em branco no final */
-    html, body { height: auto !important; }
-    #root > div > div:last-child,
-    #root > div > div > div:last-child { margin-bottom: 0 !important; padding-bottom: 0 !important; page-break-after: avoid !important; break-after: avoid !important; }
+    /* Evitar páginas em branco no final */
+    html, body { height: auto !important; min-height: 0 !important; margin: 0 !important; padding: 0 !important; }
+    * { min-height: 0 !important; }
+    #root, #root > div, #root > div > div { height: auto !important; min-height: 0 !important; padding-bottom: 0 !important; margin-bottom: 0 !important; }
+    .print-only { break-after: avoid !important; page-break-after: avoid !important; }
   }
 
   /* Tweaks panel */
@@ -404,6 +405,9 @@ window.addEventListener('beforeprint', () => {
     }
     if (s.height && (s.height === '100%' || s.height === '100vh')) {
       saved.height = s.height; s.height = 'auto'; changed = true;
+    }
+    if (s.minHeight && s.minHeight !== '0px' && s.minHeight !== '0' && s.minHeight !== 'auto') {
+      saved.minHeight = s.minHeight; s.minHeight = '0'; changed = true;
     }
     if (s.maxHeight && s.maxHeight !== 'none') {
       saved.maxHeight = s.maxHeight; s.maxHeight = 'none'; changed = true;
