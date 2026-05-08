@@ -101,8 +101,9 @@
     /* Evitar páginas em branco no final */
     html, body { height: auto !important; min-height: 0 !important; margin: 0 !important; padding: 0 !important; }
     * { min-height: 0 !important; }
-    #root, #root > div, #root > div > div { height: auto !important; min-height: 0 !important; padding-bottom: 0 !important; margin-bottom: 0 !important; }
+    #root, #root > * { display: block !important; height: auto !important; min-height: 0 !important; padding: 0 !important; margin: 0 !important; overflow: visible !important; }
     .print-only { break-after: avoid !important; page-break-after: avoid !important; }
+    .print-only ~ * { display: none !important; }
   }
 
   /* Tweaks panel */

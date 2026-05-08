@@ -1661,7 +1661,7 @@ const HistoricoTab = ({ patient, avaliacoes, protoRef }) => {
 
       {/* Resumo de IA */}
       {(aiLoading || aiSummary) && (
-        <div className="ai-summary-card" style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 10, marginBottom: 20, borderLeft: "3px solid var(--accent)", overflow: "hidden" }}>
+        <div className="ai-summary-card no-print" style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 10, marginBottom: 20, borderLeft: "3px solid var(--accent)", overflow: "hidden" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px 18px", cursor: aiSummary ? "pointer" : "default" }}
             onClick={() => aiSummary && setAiCollapsed(c => !c)}>
             <span style={{ fontSize: 13 }}>✦</span>
