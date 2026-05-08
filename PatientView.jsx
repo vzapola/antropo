@@ -988,14 +988,14 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, tex
           {n:9,key:"panturrilha",  label:"Panturrilha",    unit:"mm", dec:1},
         ];
         const circsDefs = [
-          {n:"A",key:"torax",          label:"Tórax",          unit:"cm", dec:0},
-          {n:"B",key:"braco",          label:"Braço relaxado", unit:"cm", dec:0},
-          {n:"C",key:"braco_contraido",label:"Braço contraído",unit:"cm", dec:0},
-          {n:"D",key:"cintura",        label:"Cintura",        unit:"cm", dec:0},
-          {n:"E",key:"abdomen",        label:"Abdômen",        unit:"cm", dec:0},
-          {n:"F",key:"quadril",        label:"Quadril",        unit:"cm", dec:0},
-          {n:"G",key:"coxa",           label:"Coxa",           unit:"cm", dec:0},
-          {n:"H",key:"panturrilha",    label:"Panturrilha",    unit:"cm", dec:0},
+          {n:"A",key:"torax",          label:"Tórax",          unit:"cm", dec:1},
+          {n:"B",key:"braco",          label:"Braço relaxado", unit:"cm", dec:1},
+          {n:"C",key:"braco_contraido",label:"Braço contraído",unit:"cm", dec:1},
+          {n:"D",key:"cintura",        label:"Cintura",        unit:"cm", dec:1},
+          {n:"E",key:"abdomen",        label:"Abdômen",        unit:"cm", dec:1},
+          {n:"F",key:"quadril",        label:"Quadril",        unit:"cm", dec:1},
+          {n:"G",key:"coxa",           label:"Coxa",           unit:"cm", dec:1},
+          {n:"H",key:"panturrilha",    label:"Panturrilha",    unit:"cm", dec:1},
         ];
 
         const dobrasRows = dobrasDefs.reduce((acc, d) => {
