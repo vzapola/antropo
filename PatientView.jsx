@@ -633,7 +633,7 @@ const DEFAULT_REPORT_TEXTS = {
 };
 
 // ---- Relatório impresso orientado ao paciente ----
-const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, texts = DEFAULT_REPORT_TEXTS, editMode = false, onTextChange = () => {} }) => {
+const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, texts = DEFAULT_REPORT_TEXTS, editMode = false, onTextChange = () => {}, aiSummary = '' }) => {
   if (!avs.length) return null;
   const isSingle = avs.length === 1;
   const firstAv = avs[0], lastAv = avs[avs.length - 1];
@@ -891,10 +891,10 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, tex
           {/* Soma 8 dobras ISAK + gráfico */}
           {rN.isak8 != null && (
             <div style={{ breakInside:'avoid', display:'flex', flexDirection:'column', gap:6 }}>
-              <ReportCard label="Soma 8 Dobras (ISAK)" value={n(rN.isak8, 0)} unit="mm"
+              <ReportCard label="Soma 8 Dobras (ISAK)" value={n(rN.isak8, 1)} unit="mm"
                 explain={texts.isak8} textKey="isak8" editMode={editMode} onTextChange={onTextChange}
-                v0={r0.isak8} vN={rN.isak8} vUnit="mm" vDec={0} lowerIsBetter={true} isSingle={isSingle}/>
-              <MiniChart unit="mm" data={chartSeries(av=>calcISAK8(av.dobras||{}), 0)} fallbackColor="#0d9488"/>
+                v0={r0.isak8} vN={rN.isak8} vUnit="mm" vDec={1} lowerIsBetter={true} isSingle={isSingle}/>
+              <MiniChart unit="mm" data={chartSeries(av=>calcISAK8(av.dobras||{}), 1)} fallbackColor="#0d9488"/>
             </div>
           )}
 
@@ -906,15 +906,6 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, tex
       <div style={{ breakInside:'avoid' }}>
         <ReportSection title="Saúde Cardiovascular" sub={texts.secCardioSub} subKey="secCardioSub" editMode={editMode} onTextChange={onTextChange} />
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:7 }}>
-
-          {/* Cintura + gráfico */}
-          <div style={{ breakInside:'avoid', display:'flex', flexDirection:'column', gap:6 }}>
-            <ReportCard label="Circunferência da Cintura" value={n(lastAv.circs?.cintura,0)} unit="cm"
-              explain={texts.cintura} textKey="cintura" editMode={editMode} onTextChange={onTextChange}
-              idealRange={patient.sexo==='F'?'Menos de 80 cm':'Menos de 94 cm'}
-              v0={firstAv.circs?.cintura} vN={lastAv.circs?.cintura} vUnit="cm" vDec={0} lowerIsBetter={true} isSingle={isSingle}/>
-            <MiniChart unit="cm" data={chartSeries(av=>av.circs?.cintura,0)} fallbackColor="#d97706"/>
-          </div>
 
           {/* RCQ + gráfico */}
           <div style={{ breakInside:'avoid', display:'flex', flexDirection:'column', gap:6 }}>
@@ -1098,6 +1089,21 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, tex
         );
       })()}
 
+      {/* ── Resumo de evolução (IA) ── */}
+      {aiSummary && (
+        <div style={{ marginTop:14, breakInside:'avoid', padding:'10px 13px', background:'#f0f9ff', borderRadius:6, border:'1px solid #bae6fd', borderLeft:'3px solid #0284c7' }}>
+          <div style={{ fontSize:8.5, fontWeight:700, color:'#0284c7', textTransform:'uppercase', letterSpacing:'0.07em', marginBottom:5 }}>✦ Resumo de Evolução · Gerado com IA · Revisão obrigatória</div>
+          <div style={{ fontSize:9.5, color:'#1e3a5f', lineHeight:1.75 }}>
+            {aiSummary.split('\n').map((line, i) => {
+              if (!line.trim()) return <div key={i} style={{ height:4 }} />;
+              const parts = line.split(/\*\*(.*?)\*\*/g).map((part, j) => j % 2 === 1 ? <strong key={j}>{part}</strong> : part);
+              if (line.trim().match(/^[-•*] /)) return <div key={i} style={{ display:'flex', gap:6, marginBottom:2 }}><span style={{ color:'#0284c7', flexShrink:0 }}>▸</span><span>{line.trim().replace(/^[-•*] /,'')}</span></div>;
+              return <div key={i} style={{ marginBottom:4 }}>{parts}</div>;
+            })}
+          </div>
+        </div>
+      )}
+
       {/* ── Notas metodológicas ── */}
       <div style={{ marginTop:14,padding:'9px 13px',background:'#fafafa',borderRadius:6,border:'1px solid #eee' }}>
         <div style={{ fontSize:8.5,fontWeight:700,color:'#888',textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:4 }}>Notas Metodológicas</div>
@@ -1112,7 +1118,7 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, tex
 };
 
 // ---- Modal de pré-visualização e edição do relatório ----
-const PrintPreviewModal = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, texts, onTextsChange, onClose, onPrint }) => {
+const PrintPreviewModal = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, texts, onTextsChange, onClose, onPrint, aiSummary = '' }) => {
   const [draft, setDraft] = React.useState({ ...texts });
   const updateText = (key, val) => setDraft(p => ({ ...p, [key]: val }));
 
@@ -1149,6 +1155,7 @@ const PrintPreviewModal = ({ patient, avs, protoRef, protoLabel, idade, getProto
             patient={patient} avs={avs} protoRef={protoRef} protoLabel={protoLabel}
             idade={idade} getProtoG={getProtoG}
             texts={draft} editMode={true} onTextChange={updateText}
+            aiSummary={aiSummary}
           />
         </div>
       </div>
@@ -1368,7 +1375,7 @@ const HistoricoTab = ({ patient, avaliacoes, protoRef }) => {
     { title: "Massa Muscular · Lee 2000", unit: "kg", dec: 1, height: 140, data: series(av => calcularTudo(av.peso, av.altura, patient.sexo, idade, av.dobras, av.circs).mm, 1), color: COLS[4], bands: null },
     { title: "RCQ", unit: "", dec: 2, height: 180, data: series(av => calcularTudo(av.peso, av.altura, patient.sexo, idade, av.dobras, av.circs).rcq, 2), color: COLS[6], bands: patient.sexo === "F" ? RCQ_BANDS_F : RCQ_BANDS_M },
     { title: "RCE", unit: "", dec: 2, height: 180, data: series(av => calcularTudo(av.peso, av.altura, patient.sexo, idade, av.dobras, av.circs).rce, 2), color: COLS[7], bands: RCE_BANDS },
-    { title: "Soma 8 Dobras (ISAK)", unit: "mm", dec: 0, height: 140, data: series(av => calcISAK8(av.dobras || {}), 0), color: "#0d9488", bands: null },
+    { title: "Soma 8 Dobras (ISAK)", unit: "mm", dec: 1, height: 140, data: series(av => calcISAK8(av.dobras || {}), 1), color: "#0d9488", bands: null },
   ];
 
   // Retorna a cor da faixa em que o valor cai
@@ -1452,6 +1459,7 @@ const HistoricoTab = ({ patient, avaliacoes, protoRef }) => {
   const [showPromptPanel, setShowPromptPanel] = React.useState(false);
   const [promptText, setPromptText] = React.useState("");
   const [promptCopied, setPromptCopied] = React.useState(false);
+  const [pastedText, setPastedText] = React.useState("");
 
   const buildPrompt = () => {
     const n = (v, d=1) => v != null && !isNaN(v) ? Number(v).toFixed(d).replace('.',',') : '—';
@@ -1517,6 +1525,7 @@ const HistoricoTab = ({ patient, avaliacoes, protoRef }) => {
     setPromptText(p);
     setShowPromptPanel(true);
     setPromptCopied(false);
+    setPastedText("");
   };
 
   const copiarPrompt = () => {
@@ -1542,7 +1551,7 @@ const HistoricoTab = ({ patient, avaliacoes, protoRef }) => {
 
       {/* Relatório impresso — orientado ao paciente */}
       <div className="print-only" style={{ display: "none" }}>
-        <PrintReport patient={patient} avs={avs} protoRef={protoRef} protoLabel={protoLabel} idade={idade} getProtoG={getProtoG} texts={reportTexts} />
+        <PrintReport patient={patient} avs={avs} protoRef={protoRef} protoLabel={protoLabel} idade={idade} getProtoG={getProtoG} texts={reportTexts} aiSummary={aiSummary||''} />
       </div>
 
       {/* Modal de pré-visualização */}
@@ -1552,6 +1561,7 @@ const HistoricoTab = ({ patient, avaliacoes, protoRef }) => {
           idade={idade} getProtoG={getProtoG}
           texts={reportTexts}
           onTextsChange={setReportTexts}
+          aiSummary={aiSummary||''}
           onClose={() => setPreviewOpen(false)}
           onPrint={() => { setPreviewOpen(false); setTimeout(() => window.print(), 60); }}
         />
@@ -1617,10 +1627,12 @@ const HistoricoTab = ({ patient, avaliacoes, protoRef }) => {
           {/* Campo para colar a resposta */}
           <div style={{ padding: "10px 16px", borderTop: "1px solid var(--border)", background: "var(--surface)" }}>
             <div style={{ fontSize: 11.5, color: "var(--muted)", marginBottom: 8 }}>
-              Cole aqui a resposta do Claude.ai para salvar no relatório:
+              Cole aqui a resposta do Claude.ai — edite se necessário e clique em Salvar:
             </div>
             <textarea
-              rows={5}
+              rows={6}
+              value={pastedText}
+              onChange={e => setPastedText(e.target.value)}
               placeholder="Cole a resposta do Claude.ai aqui..."
               style={{
                 width: "100%", padding: "10px 12px", borderRadius: 7,
@@ -1628,19 +1640,21 @@ const HistoricoTab = ({ patient, avaliacoes, protoRef }) => {
                 color: "var(--text)", fontSize: 13, fontFamily: "inherit",
                 resize: "vertical", outline: "none", boxSizing: "border-box",
               }}
-              onPaste={e => {
-                setTimeout(() => {
-                  const txt = e.target.value.trim();
-                  if (txt.length > 30) {
-                    colarResumo(txt);
-                    setShowPromptPanel(false);
-                    setAiCollapsed(false);
-                  }
-                }, 100);
-              }}
               onFocus={e => { e.target.style.borderColor = "var(--accent)"; e.target.style.boxShadow = "0 0 0 2px var(--accent-light)"; }}
               onBlur={e => { e.target.style.borderColor = "var(--border)"; e.target.style.boxShadow = "none"; }}
             />
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 8 }}>
+              <button onClick={() => { setShowPromptPanel(false); setPastedText(""); }}
+                style={{ padding: "6px 14px", borderRadius: 6, border: "1px solid var(--border)", background: "transparent", color: "var(--muted)", fontSize: 12, fontFamily: "inherit", cursor: "pointer" }}>
+                Cancelar
+              </button>
+              <button
+                disabled={pastedText.trim().length < 10}
+                onClick={() => { colarResumo(pastedText); setShowPromptPanel(false); setPastedText(""); setAiCollapsed(false); }}
+                style={{ padding: "6px 18px", borderRadius: 6, border: "none", background: pastedText.trim().length >= 10 ? "var(--accent)" : "var(--border)", color: pastedText.trim().length >= 10 ? "#fff" : "var(--muted)", fontSize: 12, fontFamily: "inherit", fontWeight: 700, cursor: pastedText.trim().length >= 10 ? "pointer" : "default", transition: "background 0.15s" }}>
+                Salvar resumo
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -1653,6 +1667,12 @@ const HistoricoTab = ({ patient, avaliacoes, protoRef }) => {
             <span style={{ fontSize: 13 }}>✦</span>
             <span style={{ fontWeight: 700, fontSize: 13, color: "var(--text)" }}>Resumo de evolução</span>
             <span style={{ fontSize: 11, color: "var(--muted)", marginLeft: "auto" }}>IA · revisão obrigatória</span>
+            {aiSummary && (
+              <button onClick={e => { e.stopPropagation(); setPastedText(aiSummary); setShowPromptPanel(true); setAiCollapsed(false); }}
+                style={{ fontSize: 11, color: "var(--accent)", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", padding: "2px 6px" }}>
+                ✏ Editar
+              </button>
+            )}
             {aiSummary && <span style={{ fontSize: 12, color: "var(--muted)", marginLeft: 6 }}>{aiCollapsed ? "▸" : "▾"}</span>}
           </div>
           {!aiCollapsed && (
