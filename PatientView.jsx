@@ -1851,12 +1851,12 @@ const HistoricoTab = ({ patient, avaliacoes, protoRef }) => {
                     </td>
                     {c.vals.map((v, idx) => (
                       <td key={idx} style={{ padding:"6px 10px", textAlign:"center", fontFamily:"'JetBrains Mono',monospace", background:idx===c.vals.length-1?"rgba(37,99,235,0.03)":"transparent" }}>
-                        {v != null ? fmtN(v,0) : <span style={{ color:"var(--muted)" }}>—</span>}
+                        {v != null ? fmtN(v,1) : <span style={{ color:"var(--muted)" }}>—</span>}
                       </td>
                     ))}
                     {avs.length > 1 && (
                       <td style={{ padding:"6px 10px", textAlign:"center", fontFamily:"'JetBrains Mono',monospace", fontWeight:600, color:c.delta==null?"var(--muted)":c.delta<-0.05?"#16a34a":c.delta>0.05?"#dc2626":"#888" }}>
-                        {c.delta==null?"—":(c.delta>0?"+":"")+fmtN(c.delta,0)}
+                        {c.delta==null?"—":(c.delta>0?"+":"")+fmtN(c.delta,1)}
                       </td>
                     )}
                   </tr>
