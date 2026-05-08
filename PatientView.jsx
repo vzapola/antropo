@@ -1034,6 +1034,127 @@ const PrintPreviewModal = ({ patient, avs, protoRef, protoLabel, idade, getProto
 };
 
 // ---- Tab: Histórico ----
+// ---- Diagrama anatômico SVG de referência (sexo-ciente) ----
+const BodyDiagram = ({ sexo = 'M' }) => {
+  const isF = sexo === 'F';
+
+  // Silhueta simplificada — viewBox 0 0 200 440
+  // Feminino: ombros ligeiramente mais estreitos, cintura mais definida, quadril mais largo
+  // Masculino: ombros largos, build retangular, quadril mais estreito
+  const frontPath = isF
+    ? "M 32,78 Q 100,64 168,78 L 168,206 Q 167,220 158,226 L 151,220 Q 149,215 147,210 L 146,195 L 143,178 Q 141,200 140,222 Q 140,248 155,260 Q 162,270 155,276 L 141,440 L 126,440 L 121,330 Q 100,318 79,330 L 74,440 L 59,440 L 45,276 Q 38,270 45,260 Q 60,248 60,222 Q 59,200 57,178 L 54,195 L 53,210 Q 51,215 49,220 L 42,226 Q 33,220 32,206 Z"
+    : "M 25,78 Q 100,63 175,78 L 175,206 Q 174,220 165,226 L 158,220 Q 156,215 154,210 L 153,195 L 150,178 L 152,258 Q 156,270 150,276 L 140,440 L 125,440 L 120,330 Q 100,318 80,330 L 75,440 L 60,440 L 50,276 Q 44,270 48,258 L 50,178 L 47,195 L 46,210 Q 44,215 42,220 L 35,226 Q 26,220 25,206 Z";
+
+  // Vista de costas usa o mesmo contorno (simétrica)
+  const backPath = frontPath;
+
+  const DOBRA_PTS = [
+    { n:1,  key:"tricipital",    label:"Tricipital",    view:"B", cx:40,  cy:140 },
+    { n:2,  key:"biceps",        label:"Bíceps",        view:"F", cx:40,  cy:138 },
+    { n:3,  key:"subescapular",  label:"Subescapular",  view:"B", cx:88,  cy:142 },
+    { n:4,  key:"peitoral",      label:"Peitoral",      view:"F", cx:76,  cy:122 },
+    { n:5,  key:"axilar",        label:"Axilar média",  view:"F", cx:62,  cy:138 },
+    { n:6,  key:"suprailíaca",   label:"Suprailíaca",   view:"F", cx:136, cy:200 },
+    { n:7,  key:"supraespinal",  label:"Supraespinal",  view:"F", cx:132, cy:210 },
+    { n:8,  key:"abdominal",     label:"Abdominal",     view:"F", cx:108, cy:178 },
+    { n:9,  key:"coxa",          label:"Coxa anterior", view:"F", cx:84,  cy:290 },
+    { n:10, key:"panturrilha",   label:"Panturrilha",   view:"F", cx:82,  cy:365 },
+  ];
+  const CIRC_LNS = [
+    { n:"A", key:"torax",           label:"Tórax",           y:122, x1:58,  x2:142 },
+    { n:"B", key:"braco",           label:"Braço relaxado",  y:135, x1:33,  x2:62  },
+    { n:"C", key:"braco_contraido", label:"Braço contraído", y:138, x1:33,  x2:62  },
+    { n:"D", key:"cintura",         label:"Cintura",         y:160, x1:62,  x2:138 },
+    { n:"E", key:"abdomen",         label:"Abdômen",         y:185, x1:58,  x2:142 },
+    { n:"F", key:"quadril",         label:"Quadril",         y:233, x1:54,  x2:146 },
+    { n:"G", key:"coxa",            label:"Coxa",            y:272, x1:62,  x2:96  },
+    { n:"H", key:"panturrilha",     label:"Panturrilha",     y:349, x1:64,  x2:96  },
+  ];
+
+  const Silhueta = ({ path, isBack }) => (
+    <svg viewBox="0 0 200 440" style={{ width:138, height:304, overflow:"visible", display:"block" }}>
+      {/* Cabeça */}
+      <ellipse cx="100" cy="30" rx="22" ry="25" fill="#f2f2f2" stroke="#c4c4c4" strokeWidth="1.5"/>
+      {/* Pescoço (preenche o gap entre cabeça e corpo) */}
+      <rect x="91" y="53" width="18" height="18" fill="#f2f2f2" stroke="none"/>
+      <line x1="91" y1="53" x2="91" y2="69" stroke="#c4c4c4" strokeWidth="1.5"/>
+      <line x1="109" y1="53" x2="109" y2="69" stroke="#c4c4c4" strokeWidth="1.5"/>
+      {/* Corpo */}
+      <path d={path} fill="#f2f2f2" stroke="#c4c4c4" strokeWidth="1.5"/>
+      {/* Indicação de seios — feminino, vista frontal */}
+      {isF && !isBack && (
+        <g>
+          <ellipse cx="85" cy="132" rx="12" ry="10" fill="#ebebeb" stroke="#c4c4c4" strokeWidth="1"/>
+          <ellipse cx="115" cy="132" rx="12" ry="10" fill="#ebebeb" stroke="#c4c4c4" strokeWidth="1"/>
+        </g>
+      )}
+      {/* Escápulas — vista costas */}
+      {isBack && (
+        <g>
+          <ellipse cx="80"  cy="135" rx="14" ry="12" fill="none" stroke="#d2d2d2" strokeWidth="1" strokeDasharray="3,2"/>
+          <ellipse cx="120" cy="135" rx="14" ry="12" fill="none" stroke="#d2d2d2" strokeWidth="1" strokeDasharray="3,2"/>
+        </g>
+      )}
+      {/* Pontos de dobras */}
+      {DOBRA_PTS.filter(p => p.view === (isBack ? "B" : "F")).map(p => (
+        <g key={p.n}>
+          <circle cx={p.cx} cy={p.cy} r={7} fill="rgba(180,83,9,0.88)" stroke="white" strokeWidth="1.2"/>
+          <text x={p.cx} y={p.cy+4} textAnchor="middle" fontSize="7" fontWeight="700" fill="white" fontFamily="'JetBrains Mono',monospace">{p.n}</text>
+        </g>
+      ))}
+      {/* Linhas de circunferências — só na vista frontal */}
+      {!isBack && CIRC_LNS.map(c => (
+        <g key={c.n}>
+          <line x1={c.x1-2} y1={c.y} x2={c.x2+2} y2={c.y} stroke="#2563eb" strokeWidth="1.8" strokeDasharray="4,2"/>
+          <rect x={c.x2+4} y={c.y-7} width="15" height="13" rx="3" fill="#2563eb" opacity="0.85"/>
+          <text x={c.x2+11.5} y={c.y+4.5} textAnchor="middle" fontSize="7.5" fontWeight="700" fill="white" fontFamily="'JetBrains Mono',monospace">{c.n}</text>
+        </g>
+      ))}
+    </svg>
+  );
+
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:10, padding:"14px 12px 10px", background:"var(--bg)", border:"1px solid var(--border)", borderRadius:10, minWidth:320, flexShrink:0 }}>
+      <div style={{ fontSize:10.5, fontWeight:700, color:"var(--muted)", letterSpacing:"0.08em", textTransform:"uppercase" }}>Pontos de referência</div>
+      <div style={{ display:"flex", gap:8, justifyContent:"center" }}>
+        <div style={{ textAlign:"center" }}>
+          <div style={{ fontSize:8.5, color:"var(--muted)", letterSpacing:"0.06em", marginBottom:2 }}>FRENTE</div>
+          <Silhueta path={frontPath} isBack={false}/>
+        </div>
+        <div style={{ textAlign:"center" }}>
+          <div style={{ fontSize:8.5, color:"var(--muted)", letterSpacing:"0.06em", marginBottom:2 }}>COSTAS</div>
+          <Silhueta path={backPath} isBack={true}/>
+        </div>
+      </div>
+      {/* Legenda */}
+      <div style={{ padding:"6px 8px", background:"var(--surface)", borderRadius:6, border:"1px solid var(--border)" }}>
+        <div style={{ display:"flex", gap:"4px 10px", flexWrap:"wrap", marginBottom:5 }}>
+          <span style={{ display:"flex", alignItems:"center", gap:4, fontSize:9, color:"var(--muted)" }}>
+            <span style={{ width:10, height:10, borderRadius:"50%", background:"rgba(180,83,9,0.88)", display:"inline-block" }}/>Dobras (mm)
+          </span>
+          <span style={{ display:"flex", alignItems:"center", gap:4, fontSize:9, color:"var(--muted)" }}>
+            <span style={{ width:10, height:2, background:"#2563eb", display:"inline-block" }}/>Circunf. (cm)
+          </span>
+        </div>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"2px 6px" }}>
+          {DOBRA_PTS.map(p => (
+            <div key={p.n} style={{ display:"flex", alignItems:"center", gap:4, fontSize:8, color:"var(--muted)" }}>
+              <span style={{ width:14, height:14, borderRadius:"50%", background:"rgba(180,83,9,0.88)", display:"inline-flex", alignItems:"center", justifyContent:"center", color:"white", fontFamily:"monospace", fontSize:7, fontWeight:700, flexShrink:0 }}>{p.n}</span>
+              {p.label}
+            </div>
+          ))}
+          {CIRC_LNS.map(c => (
+            <div key={c.n} style={{ display:"flex", alignItems:"center", gap:4, fontSize:8, color:"var(--muted)" }}>
+              <span style={{ width:14, height:14, borderRadius:3, background:"#2563eb", display:"inline-flex", alignItems:"center", justifyContent:"center", color:"white", fontFamily:"monospace", fontSize:7, fontWeight:700, flexShrink:0 }}>{c.n}</span>
+              {c.label}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const HistoricoTab = ({ patient, avaliacoes, protoRef }) => {
   const avs = avaliacoes.filter(a => a.paciente_id === patient.id).sort((a,b) => a.data.localeCompare(b.data));
   const idade = calcIdade(patient.nascimento);
@@ -1123,7 +1244,6 @@ const HistoricoTab = ({ patient, avaliacoes, protoRef }) => {
     { title: "Massa Gorda", unit: "kg", dec: 1, height: 140, data: series(av => { const g = getProtoG(av); return g != null ? av.peso * g / 100 : null; }, 1), color: COLS[2], bands: null },
     { title: "Massa Livre de Gordura", unit: "kg", dec: 1, height: 140, data: series(av => { const g = getProtoG(av); return g != null ? av.peso * (1 - g / 100) : null; }, 1), color: COLS[3], bands: null },
     { title: "Massa Muscular · Lee 2000", unit: "kg", dec: 1, height: 140, data: series(av => calcularTudo(av.peso, av.altura, patient.sexo, idade, av.dobras, av.circs).mm, 1), color: COLS[4], bands: null },
-    { title: "Cintura", unit: "cm", dec: 0, height: 140, data: series(av => av.circs?.cintura, 0), color: COLS[5], bands: null },
     { title: "RCQ", unit: "", dec: 2, height: 180, data: series(av => calcularTudo(av.peso, av.altura, patient.sexo, idade, av.dobras, av.circs).rcq, 2), color: COLS[6], bands: patient.sexo === "F" ? RCQ_BANDS_F : RCQ_BANDS_M },
     { title: "RCE", unit: "", dec: 2, height: 180, data: series(av => calcularTudo(av.peso, av.altura, patient.sexo, idade, av.dobras, av.circs).rce, 2), color: COLS[7], bands: RCE_BANDS },
     { title: "Soma 8 Dobras (ISAK)", unit: "mm", dec: 0, height: 140, data: series(av => calcISAK8(av.dobras || {}), 0), color: "#0d9488", bands: null },
@@ -1478,6 +1598,121 @@ const HistoricoTab = ({ patient, avaliacoes, protoRef }) => {
               })}
             </tbody>
           </table>
+        </div>
+      </div>
+
+      {/* ── Medidas Brutas: dobras e circunferências ── */}
+      <div className="no-print" style={{ background:"var(--surface)", border:"1px solid var(--border)", borderRadius:10, overflow:"hidden", marginBottom:20 }}>
+        <div style={{ padding:"12px 16px", borderBottom:"1px solid var(--border)", background:"var(--bg)", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+          <span style={{ fontWeight:700, fontSize:13, color:"var(--text)" }}>Medidas Brutas</span>
+          <span style={{ fontSize:11, color:"var(--muted)" }}>Dobras (mm) · Circunferências (cm)</span>
+        </div>
+        <div style={{ display:"flex" }}>
+          {/* Tabela comparativa */}
+          <div style={{ flex:1, overflowX:"auto", minWidth:0 }}>
+            <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12.5 }}>
+              <thead>
+                <tr style={{ background:"var(--bg)" }}>
+                  <th style={{ padding:"8px 14px", textAlign:"left", fontSize:10.5, fontWeight:700, color:"var(--muted)", textTransform:"uppercase", letterSpacing:"0.06em", borderBottom:"1px solid var(--border)", whiteSpace:"nowrap", position:"sticky", left:0, background:"var(--bg)", zIndex:2 }}>Medida</th>
+                  {avs.map((av, idx) => {
+                    const isLast = idx === avs.length - 1;
+                    return (
+                      <th key={av.id} style={{ padding:"8px 10px", textAlign:"center", fontSize:10.5, fontWeight:isLast?800:600, color:isLast?"var(--accent)":"var(--muted)", textTransform:"uppercase", letterSpacing:"0.06em", borderBottom:"1px solid var(--border)", whiteSpace:"nowrap", background:isLast?"rgba(37,99,235,0.03)":"var(--bg)" }}>
+                        {_fmtData(av.data)}{isLast&&<span style={{ display:"block", fontSize:8, color:"var(--accent)", textTransform:"uppercase" }}>atual</span>}
+                      </th>
+                    );
+                  })}
+                  {avs.length > 1 && <th style={{ padding:"8px 10px", textAlign:"center", fontSize:10.5, fontWeight:700, color:"var(--muted)", borderBottom:"1px solid var(--border)", whiteSpace:"nowrap" }}>Δ total</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {/* DOBRAS */}
+                {[
+                  {n:1,  key:"tricipital",    label:"Tricipital"},
+                  {n:2,  key:"biceps",         label:"Bíceps"},
+                  {n:3,  key:"subescapular",   label:"Subescapular"},
+                  {n:4,  key:"peitoral",       label:"Peitoral"},
+                  {n:5,  key:"axilar",         label:"Axilar média"},
+                  {n:6,  key:"suprailíaca",    label:"Suprailíaca"},
+                  {n:7,  key:"supraespinal",   label:"Supraespinal"},
+                  {n:8,  key:"abdominal",      label:"Abdominal"},
+                  {n:9,  key:"coxa",           label:"Coxa anterior"},
+                  {n:10, key:"panturrilha",    label:"Panturrilha"},
+                ].reduce((acc, d) => {
+                  const vals = avs.map(av => av.dobras?.[d.key] ?? null);
+                  if (vals.every(v => v == null)) return acc;
+                  const delta = vals[0] != null && vals[vals.length-1] != null ? vals[vals.length-1] - vals[0] : null;
+                  acc.push({...d, vals, delta});
+                  return acc;
+                }, []).map((d, i) => (
+                  <React.Fragment key={d.key}>
+                    {i === 0 && <tr><td colSpan={99} style={{ padding:"6px 14px 3px", background:"rgba(180,83,9,0.06)", fontSize:9.5, fontWeight:700, color:"rgba(180,83,9,0.85)", textTransform:"uppercase", letterSpacing:"0.08em" }}>Dobras cutâneas</td></tr>}
+                    <tr style={{ borderBottom:"1px solid var(--border)" }}>
+                      <td style={{ padding:"6px 14px", fontWeight:600, whiteSpace:"nowrap", position:"sticky", left:0, background:"var(--surface)", zIndex:1 }}>
+                        <span style={{ display:"inline-flex", alignItems:"center", gap:6 }}>
+                          <span style={{ width:18, height:18, borderRadius:"50%", background:"rgba(180,83,9,0.88)", display:"inline-flex", alignItems:"center", justifyContent:"center", color:"white", fontFamily:"monospace", fontSize:8, fontWeight:700, flexShrink:0 }}>{d.n}</span>
+                          {d.label}
+                        </span>
+                      </td>
+                      {d.vals.map((v, idx) => (
+                        <td key={idx} style={{ padding:"6px 10px", textAlign:"center", fontFamily:"'JetBrains Mono',monospace", background:idx===d.vals.length-1?"rgba(37,99,235,0.03)":"transparent" }}>
+                          {v != null ? fmtN(v,1) : <span style={{ color:"var(--muted)" }}>—</span>}
+                        </td>
+                      ))}
+                      {avs.length > 1 && (
+                        <td style={{ padding:"6px 10px", textAlign:"center", fontFamily:"'JetBrains Mono',monospace", fontWeight:600, color:d.delta==null?"var(--muted)":d.delta<-0.05?"#16a34a":d.delta>0.05?"#dc2626":"#888" }}>
+                          {d.delta==null?"—":(d.delta>0?"+":"")+fmtN(d.delta,1)}
+                        </td>
+                      )}
+                    </tr>
+                  </React.Fragment>
+                ))}
+                {/* CIRCUNFERÊNCIAS */}
+                {[
+                  {n:"A", key:"torax",           label:"Tórax"},
+                  {n:"B", key:"braco",            label:"Braço relaxado"},
+                  {n:"C", key:"braco_contraido",  label:"Braço contraído"},
+                  {n:"D", key:"cintura",          label:"Cintura"},
+                  {n:"E", key:"abdomen",          label:"Abdômen"},
+                  {n:"F", key:"quadril",          label:"Quadril"},
+                  {n:"G", key:"coxa",             label:"Coxa"},
+                  {n:"H", key:"panturrilha",      label:"Panturrilha"},
+                ].reduce((acc, c) => {
+                  const vals = avs.map(av => av.circs?.[c.key] ?? null);
+                  if (vals.every(v => v == null)) return acc;
+                  const delta = vals[0] != null && vals[vals.length-1] != null ? vals[vals.length-1] - vals[0] : null;
+                  acc.push({...c, vals, delta});
+                  return acc;
+                }, []).map((c, i) => (
+                  <React.Fragment key={c.key}>
+                    {i === 0 && <tr><td colSpan={99} style={{ padding:"6px 14px 3px", background:"rgba(37,99,235,0.06)", fontSize:9.5, fontWeight:700, color:"rgba(37,99,235,0.8)", textTransform:"uppercase", letterSpacing:"0.08em" }}>Circunferências</td></tr>}
+                    <tr style={{ borderBottom:"1px solid var(--border)" }}>
+                      <td style={{ padding:"6px 14px", fontWeight:600, whiteSpace:"nowrap", position:"sticky", left:0, background:"var(--surface)", zIndex:1 }}>
+                        <span style={{ display:"inline-flex", alignItems:"center", gap:6 }}>
+                          <span style={{ width:18, height:18, borderRadius:3, background:"#2563eb", display:"inline-flex", alignItems:"center", justifyContent:"center", color:"white", fontFamily:"monospace", fontSize:8, fontWeight:700, flexShrink:0 }}>{c.n}</span>
+                          {c.label}
+                        </span>
+                      </td>
+                      {c.vals.map((v, idx) => (
+                        <td key={idx} style={{ padding:"6px 10px", textAlign:"center", fontFamily:"'JetBrains Mono',monospace", background:idx===c.vals.length-1?"rgba(37,99,235,0.03)":"transparent" }}>
+                          {v != null ? fmtN(v,0) : <span style={{ color:"var(--muted)" }}>—</span>}
+                        </td>
+                      ))}
+                      {avs.length > 1 && (
+                        <td style={{ padding:"6px 10px", textAlign:"center", fontFamily:"'JetBrains Mono',monospace", fontWeight:600, color:c.delta==null?"var(--muted)":c.delta<-0.05?"#16a34a":c.delta>0.05?"#dc2626":"#888" }}>
+                          {c.delta==null?"—":(c.delta>0?"+":"")+fmtN(c.delta,0)}
+                        </td>
+                      )}
+                    </tr>
+                  </React.Fragment>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {/* Diagrama de referência anatômica */}
+          <div style={{ flexShrink:0, borderLeft:"1px solid var(--border)" }}>
+            <BodyDiagram sexo={patient.sexo}/>
+          </div>
         </div>
       </div>
 
