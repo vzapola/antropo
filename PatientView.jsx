@@ -635,329 +635,446 @@ const DEFAULT_REPORT_TEXTS = {
 // ---- Relatório impresso orientado ao paciente ----
 const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, texts = DEFAULT_REPORT_TEXTS, editMode = false, onTextChange = () => {}, aiSummary = '' }) => {
   if (!avs.length) return null;
-  const isSingle = avs.length === 1;
-  const firstAv = avs[0], lastAv = avs[avs.length - 1];
-  const r0 = calcularTudo(firstAv.peso, firstAv.altura, patient.sexo, idade, firstAv.dobras, firstAv.circs);
-  const rN = calcularTudo(lastAv.peso, lastAv.altura, patient.sexo, idade, lastAv.dobras, lastAv.circs);
-  const g0 = getProtoG(firstAv), gN = getProtoG(lastAv);
+
+  // ── Helper de formatação local ──────────────────────────────────
   const n = (v, d=1) => v != null && !isNaN(v) ? Number(v).toFixed(d).replace('.',',') : '—';
-  const fp = rN.faixaPesoIdeal;
 
-  // ── Bandas de classificação ───────────────────────────────────────
-  const IMC_BANDS = [
-    { min:0, max:18.5, color:'#3b82f6', label:'Baixo peso' },
-    { min:18.5, max:25, color:'#22c55e', label:'Eutrofia' },
-    { min:25, max:30, color:'#eab308', label:'Sobrepeso' },
-    { min:30, max:35, color:'#f97316', label:'Obesidade I' },
-    { min:35, max:99, color:'#ef4444', label:'Obesidade II/III' },
-  ];
-  const PCTG_F = [
-    { min:0, max:14, color:'#3b82f6', label:'Muito baixo' },
-    { min:14, max:21, color:'#22c55e', label:'Atleta' },
-    { min:21, max:25, color:'#86efac', label:'Boa forma' },
-    { min:25, max:32, color:'#eab308', label:'Aceitável' },
-    { min:32, max:99, color:'#ef4444', label:'Obesidade' },
-  ];
-  const PCTG_M = [
-    { min:0, max:6,  color:'#3b82f6', label:'Muito baixo' },
-    { min:6, max:14, color:'#22c55e', label:'Atleta' },
-    { min:14, max:18, color:'#86efac', label:'Boa forma' },
-    { min:18, max:25, color:'#eab308', label:'Aceitável' },
-    { min:25, max:99, color:'#ef4444', label:'Obesidade' },
-  ];
-  const RCQ_F = [
-    { min:0, max:0.80, color:'#22c55e', label:'Baixo risco' },
-    { min:0.80, max:0.85, color:'#eab308', label:'Risco moderado' },
-    { min:0.85, max:9, color:'#ef4444', label:'Risco alto' },
-  ];
-  const RCQ_M = [
-    { min:0, max:0.90, color:'#22c55e', label:'Baixo risco' },
-    { min:0.90, max:1.00, color:'#eab308', label:'Risco moderado' },
-    { min:1.00, max:9, color:'#ef4444', label:'Risco alto' },
-  ];
-  const RCE_BANDS = [
-    { min:0, max:0.40, color:'#3b82f6', label:'Magreza' },
-    { min:0.40, max:0.50, color:'#22c55e', label:'Adequado' },
-    { min:0.50, max:0.60, color:'#eab308', label:'Atenção' },
-    { min:0.60, max:9, color:'#ef4444', label:'Risco' },
-  ];
-  const pctgBands = patient.sexo === 'F' ? PCTG_F : PCTG_M;
-  const rcqBands  = patient.sexo === 'F' ? RCQ_F  : RCQ_M;
+  const firstAv = avs[0], lastAv = avs[avs.length - 1];
+  const rN = calcularTudo(lastAv.peso, lastAv.altura, patient.sexo, idade, lastAv.dobras, lastAv.circs);
+  const gN = getProtoG(lastAv);
+  const mgN = gN != null ? lastAv.peso * gN / 100 : null;
+  const mlgN = mgN != null ? lastAv.peso - mgN : null;
 
-  const getBandColor = (val, bands, fallback='#888') => {
-    if (bands == null || val == null) return fallback;
-    const b = bands.find(b => val >= b.min && val < b.max);
-    return b ? b.color : fallback;
-  };
+  const prevAv = avs.length >= 2 ? avs[avs.length - 2] : null;
+  const rPrev = prevAv ? calcularTudo(prevAv.peso, prevAv.altura, patient.sexo, idade, prevAv.dobras, prevAv.circs) : null;
+  const gPrev = prevAv ? getProtoG(prevAv) : null;
 
-  // ── Série de dados para gráficos ─────────────────────────────────
-  const chartSeries = (fn, dec=1) =>
-    avs.map(av => ({ label: av.data.slice(8)+'/'+av.data.slice(5,7), value: fn(av), dec }))
-       .filter(d => d.value != null && !isNaN(d.value));
+  const isF = patient.sexo === 'F';
 
-  // ── Mini gráfico SVG inline ──────────────────────────────────────
-  const MiniChart = ({ unit, data, bands, fallbackColor='#2563eb' }) => {
-    if (!data || data.length === 0) return (
-      <div style={{ border:'1px solid #e8e8e8', borderRadius:8, padding:'10px 12px', background:'#fafafa' }}>
-        <div style={{ fontSize:9.5, color:'#aaa' }}>Sem dados registrados</div>
-      </div>
-    );
-    const W=280, H=110, pad={t:20,r:8,b:22,l:36};
-    const vals = data.map(d=>d.value);
-    const bMin = bands ? Math.min(...bands.map(b=>b.min)) : Math.min(...vals);
-    const bMax = bands ? Math.max(...bands.filter(b=>b.max<9).map(b=>b.max)) : Math.max(...vals);
-    let allMin = Math.min(...vals, bMin), allMax = Math.max(...vals, bMax);
-    if (data.length === 1 && !bands) {
-      const halfRange = Math.max(vals[0] * 0.05, 1);
-      allMin = vals[0] - halfRange;
-      allMax = vals[0] + halfRange;
-    }
-    const range = allMax - allMin || 1;
-    const xS = i => data.length === 1
-      ? pad.l + (W - pad.l - pad.r) / 2
-      : pad.l + (i/(data.length-1))*(W-pad.l-pad.r);
-    const yS = v => H-pad.b-((v-allMin)/range)*(H-pad.t-pad.b);
-    const pts = data.map((d,i)=>[xS(i),yS(d.value)]);
-    const poly = pts.map(p=>p.join(',')).join(' ');
-    const gid = 'pr'+Math.random().toString(36).slice(2,7);
-    const lineColor = pts.length ? getBandColor(data[data.length-1].value, bands, fallbackColor) : fallbackColor;
+  // ── Sparkline miniatura ──────────────────────────────────────────
+  const Spark = ({ vals, color='#888' }) => {
+    const vs = vals.filter(v => v != null && !isNaN(v));
+    if (vs.length < 2) return null;
+    const mn = Math.min(...vs), mx = Math.max(...vs);
+    const rng = mx - mn || 1;
+    const pts = vs.map((v, i) => `${(i / (vs.length - 1)) * 76 + 2},${34 - ((v - mn) / rng) * 30}`).join(' ');
+    const lastParts = pts.split(' ').pop().split(',');
+    const lx = lastParts[0], ly = lastParts[1];
     return (
-      <div style={{ border:'1px solid #e8e8e8', borderRadius:8, padding:'8px 12px' }}>
-        <div style={{ fontSize:9, color:'#aaa', marginBottom:4 }}>{unit}</div>
-        <svg viewBox={`0 0 ${W} ${H}`} style={{ width:'100%', height:H, overflow:'visible' }}>
-          <defs>
-            <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={lineColor} stopOpacity="0.12"/>
-              <stop offset="100%" stopColor={lineColor} stopOpacity="0"/>
-            </linearGradient>
-          </defs>
-          {/* Bandas */}
-          {bands && bands.filter(b=>b.max<9).map((band,i)=>{
-            const y1=yS(Math.min(band.max,allMax)), y2=yS(Math.max(band.min,allMin));
-            if(y2<=pad.t) return null;
-            return (
-              <g key={i}>
-                <rect x={pad.l} y={Math.max(y1,pad.t)} width={W-pad.l-pad.r} height={Math.min(y2,H-pad.b)-Math.max(y1,pad.t)} fill={band.color} opacity="0.10"/>
-                <text x={W-pad.r-1} y={Math.max(y1,pad.t)+8} textAnchor="end" fontSize="6.5" fill={band.color} opacity="0.9" fontFamily="'DM Sans',sans-serif" fontWeight="600">{band.label}</text>
-              </g>
-            );
-          })}
-          {/* Grid */}
-          {[0,1,2].map(i=>{
-            const v=allMin+(range/2)*i;
-            return (
-              <g key={i}>
-                <line x1={pad.l} y1={yS(v)} x2={W-pad.r} y2={yS(v)} stroke="#e0e0e0" strokeWidth={1}/>
-                <text x={pad.l-3} y={yS(v)+3} textAnchor="end" fontSize={8} fill="#aaa" fontFamily="monospace">{n(v,data[0].dec??1)}</text>
-              </g>
-            );
-          })}
-          {/* Área e linha — só com 2+ pontos */}
-          {data.length >= 2 && <path d={[`M ${pts[0][0]},${H-pad.b}`,...pts.map(p=>`L ${p[0]},${p[1]}`),`L ${pts[pts.length-1][0]},${H-pad.b}`,'Z'].join(' ')} fill={`url(#${gid})`}/>}
-          {data.length >= 2 && <polyline points={poly} fill="none" stroke={lineColor} strokeWidth={1.5} strokeLinejoin="round" strokeLinecap="round" opacity="0.4"/>}
-          {/* Pontos coloridos por faixa */}
-          {pts.map((p,i)=>{
-            const ptColor = getBandColor(data[i].value, bands, fallbackColor);
-            return (
-              <g key={i}>
-                <circle cx={p[0]} cy={p[1]} r={4} fill={ptColor} stroke="#fff" strokeWidth={1.5}/>
-                <text x={p[0]} y={p[1]-8} textAnchor="middle" fontSize={9} fontWeight="700" fill={ptColor} fontFamily="monospace">{n(data[i].value,data[i].dec??1)}</text>
-              </g>
-            );
-          })}
-          {/* Datas */}
-          {data.map((d,i)=>(
-            <text key={i} x={xS(i)} y={H-4} textAnchor="middle" fontSize={8} fill="#aaa" fontFamily="'DM Sans',sans-serif">{d.label}</text>
-          ))}
-        </svg>
-        {/* Legenda da faixa atual */}
-        {bands && data.length > 0 && (() => {
-          const cur = data[data.length-1].value;
-          const b = bands.find(b=>cur>=b.min&&cur<b.max);
-          if(!b) return null;
-          return <div style={{ fontSize:9, color:b.color, fontWeight:700, marginTop:3 }}>▶ Atual: {b.label}</div>;
-        })()}
-      </div>
+      <svg width={80} height={36} viewBox="0 0 80 36" style={{ display:'block' }}>
+        <polyline points={pts} fill="none" stroke={color} strokeWidth={1.5} strokeLinejoin="round" strokeLinecap="round"/>
+        <circle cx={lx} cy={ly} r={2.5} fill={color}/>
+      </svg>
     );
   };
+
+  // ── Sparkline para linha de tabela ───────────────────────────────
+  const SparkRow = ({ vals, lowerIsBetter=true }) => {
+    const vs = vals.filter(v => v != null && !isNaN(v));
+    if (vs.length < 2) return <span style={{ color:'#ccc', fontSize:9 }}>—</span>;
+    const mn = Math.min(...vs), mx = Math.max(...vs), rng = mx - mn || 1;
+    const pts = vs.map((v, i) => `${(i / (vs.length - 1)) * 56 + 2},${16 - ((v - mn) / rng) * 12}`).join(' ');
+    const trend = vs[vs.length - 1] - vs[0];
+    const col = Math.abs(trend) < 0.1 ? '#888' : ((lowerIsBetter && trend < 0) || (!lowerIsBetter && trend > 0)) ? '#16a34a' : '#dc2626';
+    return (
+      <svg width={60} height={18} viewBox="0 0 60 18">
+        <polyline points={pts} fill="none" stroke={col} strokeWidth={1.2} strokeLinejoin="round"/>
+      </svg>
+    );
+  };
+
+  // ── Gauge horizontal ─────────────────────────────────────────────
+  const Gauge = ({ val, bands }) => {
+    if (val == null || !bands) return null;
+    const finiteBands = bands.filter(b => b.max < 9);
+    const rangeMax = (finiteBands[finiteBands.length - 1]?.max || 1) * 1.1;
+    const rangeMin = 0;
+    const totalW = 240;
+    const totalBandMax = finiteBands[finiteBands.length - 1]?.max || 1;
+    let cursor = 0;
+    const rects = bands.map((band, i) => {
+      const effectiveMax = band.max >= 9 ? totalBandMax * 1.1 : band.max;
+      const w = Math.max(0, (effectiveMax - cursor) / (rangeMax - rangeMin) * totalW);
+      const x = (cursor / (rangeMax - rangeMin)) * totalW;
+      cursor = effectiveMax;
+      return { x, w, color: band.color, label: band.label };
+    });
+    const markerX = Math.min(Math.max((val / (rangeMax - rangeMin)) * totalW, 0), totalW);
+    return (
+      <svg width="100%" height={32} viewBox={`0 0 ${totalW} 32`} style={{ overflow:'visible' }}>
+        {rects.map((r, i) => (
+          <rect key={i} x={r.x} y={9} width={r.w} height={10}
+            rx={i === 0 ? 3 : i === rects.length - 1 ? 3 : 0}
+            fill={r.color} opacity={0.75}/>
+        ))}
+        <polygon points={`${markerX-4},1 ${markerX+4},1 ${markerX},9`} fill="#1a1a1a"/>
+        {rects.map((r, i) => (
+          <text key={i} x={r.x + r.w / 2} y={28} textAnchor="middle" fontSize={7} fill="#888" fontFamily="'DM Sans',sans-serif">{r.label}</text>
+        ))}
+      </svg>
+    );
+  };
+
+  // ── Silhueta SVG com callouts ────────────────────────────────────
+  const SilhuetaSVG = ({ av }) => {
+    const callouts = [
+      { key:'braco',        src:'circs',  label:'Braço',        unit:'cm', dec:1, cx: isF?64:55,  cy:118, side:'left'  },
+      { key:'cintura',      src:'circs',  label:'Cintura',      unit:'cm', dec:1, cx: isF?148:150, cy:205, side:'right' },
+      { key:'quadril',      src:'circs',  label:'Quadril',      unit:'cm', dec:1, cx: isF?72:70,  cy:248, side:'left'  },
+      { key:'coxa',         src:'circs',  label:'Coxa',         unit:'cm', dec:1, cx: isF?145:148, cy:285, side:'right' },
+      { key:'tricipital',   src:'dobras', label:'Tricipital',   unit:'mm', dec:1, cx: isF?148:154, cy:110, side:'right' },
+      { key:'subescapular', src:'dobras', label:'Subescapular', unit:'mm', dec:1, cx: isF?68:66,  cy:155, side:'left'  },
+      { key:'abdominal',    src:'dobras', label:'Abdominal',    unit:'mm', dec:1, cx: isF?145:150, cy:200, side:'right' },
+    ].filter(c => {
+      const v = c.src === 'circs' ? av.circs?.[c.key] : av.dobras?.[c.key];
+      return v != null;
+    });
+
+    return (
+      <svg viewBox="0 0 220 400" width="100%" style={{ maxWidth:220, display:'block' }}>
+        {isF ? (
+          <g>
+            <ellipse cx="110" cy="36" rx="22" ry="27" fill="#f5f5f5" stroke="#1a1a1a" strokeWidth="1.5"/>
+            <rect x="102" y="61" width="16" height="14" rx="3" fill="#f5f5f5" stroke="#1a1a1a" strokeWidth="1.5"/>
+            <path d="M72,75 Q110,68 148,75 L156,130 Q148,145 140,155 L145,200 Q148,220 145,250 Q140,270 130,285 L118,340 L115,390 L103,390 L100,340 L88,285 Q78,270 73,250 Q70,220 73,200 L78,155 Q70,145 64,130 Z" fill="#f8f8f8" stroke="#1a1a1a" strokeWidth="1.5" strokeLinejoin="round"/>
+          </g>
+        ) : (
+          <g>
+            <ellipse cx="110" cy="36" rx="23" ry="27" fill="#f5f5f5" stroke="#1a1a1a" strokeWidth="1.5"/>
+            <rect x="101" y="61" width="18" height="13" rx="3" fill="#f5f5f5" stroke="#1a1a1a" strokeWidth="1.5"/>
+            <path d="M66,75 Q110,65 154,75 L165,125 Q155,142 148,155 L150,205 Q152,225 148,255 Q145,272 138,285 L122,340 L118,390 L102,390 L98,340 L82,285 Q75,272 72,255 Q68,225 70,205 L72,155 Q65,142 55,125 Z" fill="#f8f8f8" stroke="#1a1a1a" strokeWidth="1.5" strokeLinejoin="round"/>
+          </g>
+        )}
+        {callouts.map(c => {
+          const rawVal = c.src === 'circs' ? av.circs?.[c.key] : av.dobras?.[c.key];
+          const valStr = n(rawVal, c.dec) + ' ' + c.unit;
+          const lineX2 = c.side === 'left' ? 20 : 200;
+          const anchor = c.side === 'left' ? 'end' : 'start';
+          return (
+            <g key={c.key}>
+              <line x1={c.cx} y1={c.cy} x2={lineX2} y2={c.cy} stroke="#ccc" strokeWidth={0.8} strokeDasharray="2,2"/>
+              <circle cx={c.cx} cy={c.cy} r={2} fill="#1a1a1a"/>
+              <text x={lineX2} y={c.cy - 3} textAnchor={anchor} fontSize={7.5} fill="#555" fontFamily="'DM Sans',sans-serif">{c.label}</text>
+              <text x={lineX2} y={c.cy + 7} textAnchor={anchor} fontSize={7.5} fill="#1a1a1a" fontFamily="'JetBrains Mono',monospace" fontWeight="700">{valStr}</text>
+            </g>
+          );
+        })}
+      </svg>
+    );
+  };
+
+  // ── Cabeçalho de seção ───────────────────────────────────────────
+  const SecHeader = ({ title, right }) => (
+    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', borderBottom:'1px solid #e5e5e5', paddingBottom:8, marginBottom:12, marginTop:20 }}>
+      <span style={{ fontSize:9, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.12em', color:'#888' }}>{title}</span>
+      {right && <span style={{ fontSize:9, color:'#bbb' }}>{right}</span>}
+    </div>
+  );
+
+  // ── Série de sparklines ──────────────────────────────────────────
+  const sparkSeries = (fn) => avs.map(fn);
+
+  // ── Delta formatado ─────────────────────────────────────────────
+  const DeltaLine = ({ vN, vP, unit='', dec=1, lowerIsBetter=true }) => {
+    if (vN == null || vP == null) return null;
+    const d = vN - vP;
+    if (Math.abs(d) < 0.01) return <span style={{ fontSize:10, color:'#888' }}>= sem variação</span>;
+    const pct = vP !== 0 ? ((d / vP) * 100) : 0;
+    const good = (lowerIsBetter && d < 0) || (!lowerIsBetter && d > 0);
+    const col = good ? '#16a34a' : '#dc2626';
+    const arrow = d > 0 ? '▲' : '▼';
+    return (
+      <span style={{ fontSize:10, color:col, fontWeight:600 }}>
+        {arrow} {d > 0 ? '+' : ''}{n(d, dec)}{unit} ({d > 0 ? '+' : ''}{n(pct, 1)}%)
+      </span>
+    );
+  };
+
+  // ── Bandas de classificação ──────────────────────────────────────
+  const RCQ_BANDS = isF
+    ? [{ max:0.80, color:'#22c55e', label:'Baixo' }, { max:0.85, color:'#eab308', label:'Mod.' }, { max:9, color:'#ef4444', label:'Alto' }]
+    : [{ max:0.90, color:'#22c55e', label:'Baixo' }, { max:1.00, color:'#eab308', label:'Mod.' }, { max:9, color:'#ef4444', label:'Alto' }];
+  const RCE_BANDS = [
+    { max:0.40, color:'#3b82f6', label:'Magreza' },
+    { max:0.50, color:'#22c55e', label:'Adequado' },
+    { max:0.60, color:'#eab308', label:'Atenção' },
+    { max:9,    color:'#ef4444', label:'Risco' },
+  ];
+
+  // ── Dados para tabela de medidas brutas ──────────────────────────
+  const dobrasDefs = [
+    {n:1, key:"tricipital",   label:"Tricipital",     dec:1},
+    {n:2, key:"biceps",       label:"Bíceps",         dec:1},
+    {n:3, key:"subescapular", label:"Subescapular",   dec:1},
+    {n:4, key:"axilar",       label:"Axilar média",   dec:1},
+    {n:5, key:"suprailíaca",  label:"Suprailíaca",    dec:1},
+    {n:6, key:"supraespinal", label:"Supraespinal",   dec:1},
+    {n:7, key:"abdominal",    label:"Abdominal",      dec:1},
+    {n:8, key:"coxa",         label:"Coxa anterior",  dec:1},
+    {n:9, key:"panturrilha",  label:"Panturrilha",    dec:1},
+  ];
+  const circsDefs = [
+    {n:"A", key:"torax",           label:"Tórax",          dec:1},
+    {n:"B", key:"braco",           label:"Braço relaxado", dec:1},
+    {n:"C", key:"braco_contraido", label:"Braço contraído",dec:1},
+    {n:"D", key:"cintura",         label:"Cintura",        dec:1},
+    {n:"E", key:"abdomen",         label:"Abdômen",        dec:1},
+    {n:"F", key:"quadril",         label:"Quadril",        dec:1},
+    {n:"G", key:"coxa",            label:"Coxa",           dec:1},
+    {n:"H", key:"panturrilha",     label:"Panturrilha",    dec:1},
+  ];
+
+  const dobrasRows = dobrasDefs.reduce((acc, d) => {
+    const vals = avs.map(av => av.dobras?.[d.key] ?? null);
+    if (vals.every(v => v == null)) return acc;
+    const vL = vals[vals.length - 1], vP = vals.length >= 2 ? vals[vals.length - 2] : null;
+    const vFirst = vals.find(v => v != null);
+    acc.push({ ...d, vals, delta: vL != null && vP != null ? vL - vP : null, varTotal: vL != null && vFirst != null ? vL - vFirst : null });
+    return acc;
+  }, []);
+
+  const circsRows = circsDefs.reduce((acc, c) => {
+    const vals = avs.map(av => av.circs?.[c.key] ?? null);
+    if (vals.every(v => v == null)) return acc;
+    const vL = vals[vals.length - 1], vP = vals.length >= 2 ? vals[vals.length - 2] : null;
+    const vFirst = vals.find(v => v != null);
+    acc.push({ ...c, vals, delta: vL != null && vP != null ? vL - vP : null, varTotal: vL != null && vFirst != null ? vL - vFirst : null });
+    return acc;
+  }, []);
 
   return (
-    <div style={{ fontFamily:"'DM Sans',sans-serif",color:'#111' }}>
+    <div style={{ fontFamily:"'DM Sans',sans-serif", color:'#1a1a1a', fontSize:11 }}>
 
-      {/* ── Cabeçalho ── */}
-      <div style={{ display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:10,paddingBottom:8,borderBottom:'2px solid #111' }}>
+      {/* ══════════════════════════════════════════════════════════════
+          PARTE 1 — Identificação
+      ══════════════════════════════════════════════════════════════ */}
+      <div style={{ display:'grid', gridTemplateColumns:'60% 40%', paddingBottom:20, borderBottom:'2px solid #1a1a1a', marginBottom:20 }}>
+
+        {/* Esquerda */}
         <div>
-          <div style={{ fontSize:21,fontWeight:800,letterSpacing:'-0.03em',lineHeight:1.1 }}>Relatório de Evolução Antropométrica</div>
-          <div style={{ fontSize:11.5,color:'#555',marginTop:3 }}>Avaliação Antropométrica feita por Vinicius Zapola</div>
+          <div style={{ fontSize:28, fontWeight:800, letterSpacing:'-0.03em', color:'#1a1a1a', lineHeight:1.1 }}>
+            {patient.nome}
+          </div>
+          <div style={{ fontSize:12, color:'#666', marginTop:6 }}>
+            {isF ? 'Feminino' : 'Masculino'} · {idade} anos · {n(lastAv.altura, 2)} m{patient.objetivo ? ` · ${patient.objetivo}` : ''}
+          </div>
+          <div style={{ fontSize:10, color:'#999', marginTop:3 }}>
+            {protoLabel}{avs.length > 1 ? ` · ${_fmtData(firstAv.data)} → ${_fmtData(lastAv.data)} (${avs.length} avaliações)` : ` · ${_fmtData(lastAv.data)}`}
+          </div>
+          <div style={{ fontSize:9, color:'#bbb', marginTop:10 }}>
+            Emitido em {new Date().toLocaleDateString("pt-BR", { day:"2-digit", month:"long", year:"numeric" })} · Avaliação Antropométrica por Vinicius Zapola
+          </div>
         </div>
-        <div style={{ textAlign:'right',fontSize:10.5,color:'#555',flexShrink:0 }}>
-          Emitido em {new Date().toLocaleDateString("pt-BR",{day:"2-digit",month:"long",year:"numeric"})}
-        </div>
-      </div>
 
-      {/* ── Tarja paciente ── */}
-      <div style={{ background:'#1a1a1a',borderRadius:8,padding:'12px 18px',marginBottom:10 }}>
-        <div style={{ display:'grid',gridTemplateColumns:'1.8fr 1.2fr 1.8fr 1.8fr 0.6fr',gap:'3px 16px' }}>
+        {/* Direita: grid 2×2 */}
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, paddingLeft:20 }}>
           {[
-            { l:'Paciente', v:patient.nome, big:true },
-            { l:'Sexo · Idade', v:`${patient.sexo==='F'?'Feminino':'Masculino'} · ${idade} anos` },
-            { l:'Objetivo', v:patient.objetivo },
-            { l:'Período', v: isSingle ? _fmtData(firstAv.data) : `${_fmtData(firstAv.data)} → ${_fmtData(lastAv.data)}` },
-            { l:'Avaliações', v:`${avs.length}` },
-          ].map(x=>(
-            <div key={x.l} style={{ minWidth:0 }}>
-              <div style={{ fontSize:8.5,color:'#aaa',textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:1 }}>{x.l}</div>
-              <div style={{ fontSize:x.big?13:11.5,fontWeight:700,color:'#fff',lineHeight:1.3,overflowWrap:'break-word' }}>{x.v}</div>
+            { label:'% Gordura', value: gN != null ? n(gN) + '%' : '—', badge: gN != null ? classPctG(gN, patient.sexo) : null },
+            { label:'Peso', value: n(lastAv.peso) + ' kg', badge: null },
+            { label:'IMC', value: n(rN.imc), badge: rN.classIMC },
+            { label:'Massa Magra', value: mlgN != null ? n(mlgN) + ' kg' : '—', badge: null },
+          ].map(cell => (
+            <div key={cell.label} style={{ background:'#fafafa', border:'1px solid #ebebeb', borderRadius:6, padding:'8px 10px' }}>
+              <div style={{ fontSize:7.5, textTransform:'uppercase', letterSpacing:'0.08em', color:'#999', marginBottom:3 }}>{cell.label}</div>
+              <div style={{ fontSize:18, fontWeight:700, fontFamily:"'JetBrains Mono',monospace", color:'#1a1a1a', lineHeight:1.1 }}>{cell.value}</div>
+              {cell.badge && <div style={{ marginTop:3 }}><Badge tag={cell.badge.tag} small>{cell.badge.label}</Badge></div>}
             </div>
           ))}
         </div>
       </div>
 
-      {/* ── Barra de resumo ── */}
-      <div style={{ display:'grid',gridTemplateColumns:'repeat(6,1fr)',gap:5,padding:'9px 12px',background:'#f8f8f8',borderRadius:8,border:'1px solid #e8e8e8',marginBottom:4 }}>
+      {/* ══════════════════════════════════════════════════════════════
+          PARTE 2 — Dashboard de Evolução
+      ══════════════════════════════════════════════════════════════ */}
+      <SecHeader title="Dashboard de Evolução" right={avs.length > 1 ? `${avs.length} avaliações` : null}/>
+
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:8 }}>
         {[
-          { l:'Peso inicial', v:n(firstAv.peso), u:'kg' },
-          { l:'Peso atual', v:n(lastAv.peso), u:'kg' },
-          { l:'Gordura inicial', v:n(g0), u:'%' },
-          { l:'Gordura atual', v:n(gN), u:'%' },
-          { l:'Massa Magra atual', v:gN!=null?n(lastAv.peso*(1-gN/100)):'—', u:'kg' },
-          { l:'Músculo atual', v:n(rN.mm), u:'kg' },
-        ].map(x=>(
-          <div key={x.l} style={{ textAlign:'center' }}>
-            <div style={{ fontSize:8,color:'#888',textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:1 }}>{x.l}</div>
-            <div style={{ fontSize:15,fontWeight:800,fontFamily:'monospace' }}>{x.v}</div>
-            <div style={{ fontSize:9,color:'#888' }}>{x.u}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* ══════════════════════════════════════════════════════════════
-          COMPOSIÇÃO CORPORAL
-      ══════════════════════════════════════════════════════════════ */}
-      <ReportSection title="Composição Corporal" sub={texts.secComposicaoSub} subKey="secComposicaoSub" editMode={editMode} onTextChange={onTextChange} />
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:7 }}>
-
-          {/* Peso + gráfico */}
-          <div style={{ breakInside:'avoid', display:'flex', flexDirection:'column', gap:6 }}>
-            <ReportCard label="Peso Corporal" value={n(lastAv.peso)} unit="kg"
-              explain={texts.peso} textKey="peso" editMode={editMode} onTextChange={onTextChange}
-              idealRange={fp?`${n(fp[0])}–${n(fp[1])} kg para sua altura`:null}
-              v0={firstAv.peso} vN={lastAv.peso} vUnit="kg" lowerIsBetter={true} isSingle={isSingle}/>
-            <MiniChart unit="kg" data={chartSeries(av=>av.peso)} fallbackColor="#2563eb"/>
-          </div>
-
-          {/* IMC + gráfico */}
-          <div style={{ breakInside:'avoid', display:'flex', flexDirection:'column', gap:6 }}>
-            <ReportCard label="Índice de Massa Corporal (IMC)" value={n(rN.imc)} unit="kg/m²" badge={rN.classIMC}
-              explain={texts.imc} textKey="imc" editMode={editMode} onTextChange={onTextChange}
-              idealRange="18,5 – 24,9 kg/m²"
-              v0={r0.imc} vN={rN.imc} lowerIsBetter={true} isSingle={isSingle}/>
-            <MiniChart unit="kg/m²" data={chartSeries(av=>calcIMC(av.peso,av.altura))} bands={IMC_BANDS} fallbackColor="#16a34a"/>
-          </div>
-
-          {/* % Gordura + gráfico */}
-          <div style={{ breakInside:'avoid', display:'flex', flexDirection:'column', gap:6 }}>
-            <ReportCard label="Percentual de Gordura" value={gN!=null?n(gN):'—'} unit="%" badge={gN!=null?classPctG(gN,patient.sexo):null}
-              explain={texts.pctG} textKey="pctG" editMode={editMode} onTextChange={onTextChange}
-              idealRange={patient.sexo==='F'?'21–25% (boa forma)':'14–18% (boa forma)'}
-              v0={g0} vN={gN} vUnit="%" lowerIsBetter={true} isSingle={isSingle}/>
-            <MiniChart unit="%" data={chartSeries(av=>getProtoG(av))} bands={pctgBands} fallbackColor="#dc2626"/>
-          </div>
-
-          {/* Gordura kg + gráfico */}
-          <div style={{ breakInside:'avoid', display:'flex', flexDirection:'column', gap:6 }}>
-            <ReportCard label="Gordura em Quilos" value={gN!=null?n(lastAv.peso*gN/100):'—'} unit="kg"
-              explain={texts.gordKg} textKey="gordKg" editMode={editMode} onTextChange={onTextChange}
-              v0={g0!=null?firstAv.peso*g0/100:null} vN={gN!=null?lastAv.peso*gN/100:null} vUnit="kg" lowerIsBetter={true} isSingle={isSingle}/>
-            <MiniChart unit="kg" data={chartSeries(av=>{const g=getProtoG(av);return g!=null?av.peso*g/100:null;})} fallbackColor="#dc2626"/>
-          </div>
-
-          {/* Massa Magra + gráfico */}
-          <div style={{ breakInside:'avoid', display:'flex', flexDirection:'column', gap:6 }}>
-            <ReportCard label="Massa Magra" value={gN!=null?n(lastAv.peso*(1-gN/100)):'—'} unit="kg"
-              explain={texts.massaMagra} textKey="massaMagra" editMode={editMode} onTextChange={onTextChange}
-              v0={g0!=null?firstAv.peso*(1-g0/100):null} vN={gN!=null?lastAv.peso*(1-gN/100):null} vUnit="kg" lowerIsBetter={false} isSingle={isSingle}/>
-            <MiniChart unit="kg" data={chartSeries(av=>{const g=getProtoG(av);return g!=null?av.peso*(1-g/100):null;})} fallbackColor="#9333ea"/>
-          </div>
-
-          {/* Músculo + gráfico */}
-          <div style={{ breakInside:'avoid', display:'flex', flexDirection:'column', gap:6 }}>
-            <ReportCard label="Músculo Esquelético" value={n(rN.mm)} unit="kg"
-              explain={texts.musculo} textKey="musculo" editMode={editMode} onTextChange={onTextChange}
-              v0={r0.mm} vN={rN.mm} vUnit="kg" lowerIsBetter={false} isSingle={isSingle}/>
-            <MiniChart unit="kg" data={chartSeries(av=>calcularTudo(av.peso,av.altura,patient.sexo,idade,av.dobras,av.circs).mm)} fallbackColor="#0891b2"/>
-          </div>
-
-          {/* Soma 8 dobras ISAK + gráfico */}
-          {rN.isak8 != null && (
-            <div style={{ breakInside:'avoid', display:'flex', flexDirection:'column', gap:6 }}>
-              <ReportCard label="Soma 8 Dobras (ISAK)" value={n(rN.isak8, 1)} unit="mm"
-                explain={texts.isak8} textKey="isak8" editMode={editMode} onTextChange={onTextChange}
-                v0={r0.isak8} vN={rN.isak8} vUnit="mm" vDec={1} lowerIsBetter={true} isSingle={isSingle}/>
-              <MiniChart unit="mm" data={chartSeries(av=>calcISAK8(av.dobras||{}), 1)} fallbackColor="#0d9488"/>
+          {
+            nome: 'Peso', sub: 'kg',
+            vals: sparkSeries(av => av.peso),
+            vN: lastAv.peso, vP: prevAv?.peso,
+            badge: null, lowerIsBetter: true, dec: 1,
+            display: n(lastAv.peso), unit: 'kg',
+          },
+          {
+            nome: 'IMC', sub: 'kg/m²',
+            vals: sparkSeries(av => calcIMC(av.peso, av.altura)),
+            vN: rN.imc, vP: rPrev?.imc,
+            badge: rN.classIMC, lowerIsBetter: true, dec: 1,
+            display: n(rN.imc), unit: 'kg/m²',
+          },
+          {
+            nome: '% Gordura', sub: '%',
+            vals: sparkSeries(av => getProtoG(av)),
+            vN: gN, vP: gPrev,
+            badge: gN != null ? classPctG(gN, patient.sexo) : null,
+            lowerIsBetter: true, dec: 1,
+            display: gN != null ? n(gN) : '—', unit: '%',
+          },
+          {
+            nome: 'Massa Muscular', sub: 'kg',
+            vals: sparkSeries(av => calcularTudo(av.peso, av.altura, patient.sexo, idade, av.dobras, av.circs).mm),
+            vN: rN.mm, vP: rPrev?.mm,
+            badge: null, lowerIsBetter: false, dec: 1,
+            display: n(rN.mm), unit: 'kg',
+          },
+          {
+            nome: 'Σ 8 Dobras', sub: 'mm (ISAK)',
+            vals: sparkSeries(av => calcISAK8(av.dobras || {})),
+            vN: rN.isak8, vP: rPrev?.isak8,
+            badge: null, lowerIsBetter: true, dec: 1,
+            display: rN.isak8 != null ? n(rN.isak8) : '—', unit: 'mm',
+          },
+        ].map(card => {
+          const d = (card.vN != null && card.vP != null) ? card.vN - card.vP : null;
+          const good = d == null ? null : ((card.lowerIsBetter && d < 0) || (!card.lowerIsBetter && d > 0));
+          const deltaCol = d == null ? '#888' : (good ? '#16a34a' : '#dc2626');
+          const arrow = d == null ? '' : d > 0 ? '▲' : '▼';
+          return (
+            <div key={card.nome} style={{ background:'#fafafa', border:'1px solid #ebebeb', borderRadius:6, padding:'10px 12px', position:'relative', overflow:'hidden' }}>
+              <div style={{ position:'absolute', top:8, right:8, opacity:0.5 }}>
+                <Spark vals={card.vals} color={deltaCol === '#888' ? '#888' : deltaCol}/>
+              </div>
+              <div style={{ fontSize:8, textTransform:'uppercase', letterSpacing:'0.1em', color:'#888', fontWeight:700 }}>{card.nome}</div>
+              <div style={{ fontSize:7, color:'#bbb', marginBottom:6 }}>{card.sub}</div>
+              <div style={{ fontSize:24, fontWeight:700, fontFamily:"'JetBrains Mono',monospace", color:'#1a1a1a', lineHeight:1 }}>
+                {card.display}<span style={{ fontSize:10, color:'#888', marginLeft:3 }}>{card.unit}</span>
+              </div>
+              {d != null && (
+                <div style={{ marginTop:4, fontSize:10, color:deltaCol, fontWeight:600 }}>
+                  {arrow} {d > 0 ? '+' : ''}{n(d, card.dec)}{card.unit}
+                </div>
+              )}
+              {card.badge && <div style={{ marginTop:4 }}><Badge tag={card.badge.tag} small>{card.badge.label}</Badge></div>}
             </div>
-          )}
-
-        </div>
-
-      {/* ══════════════════════════════════════════════════════════════
-          SAÚDE CARDIOVASCULAR
-      ══════════════════════════════════════════════════════════════ */}
-      <div style={{ breakInside:'avoid' }}>
-        <ReportSection title="Saúde Cardiovascular" sub={texts.secCardioSub} subKey="secCardioSub" editMode={editMode} onTextChange={onTextChange} />
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:7 }}>
-
-          {/* RCQ + gráfico */}
-          <div style={{ breakInside:'avoid', display:'flex', flexDirection:'column', gap:6 }}>
-            <ReportCard label="Distribuição de Gordura no Corpo (RCQ)" value={n(rN.rcq,2)} unit="" badge={classRCQ(rN.rcq,patient.sexo)}
-              explain={texts.rcq} textKey="rcq" editMode={editMode} onTextChange={onTextChange}
-              idealRange={patient.sexo==='F'?'Abaixo de 0,80':'Abaixo de 0,90'}
-              v0={r0.rcq} vN={rN.rcq} vUnit="" vDec={2} lowerIsBetter={true} isSingle={isSingle}/>
-            <MiniChart unit="" data={chartSeries(av=>calcularTudo(av.peso,av.altura,patient.sexo,idade,av.dobras,av.circs).rcq,2)} bands={rcqBands} fallbackColor="#be123c"/>
-          </div>
-
-          {/* RCE + gráfico */}
-          <div style={{ breakInside:'avoid', display:'flex', flexDirection:'column', gap:6 }}>
-            <ReportCard label="Gordura Abdominal vs. Altura (RCE)" value={n(rN.rce,2)} unit="" badge={classRCE(rN.rce)}
-              explain={texts.rce} textKey="rce" editMode={editMode} onTextChange={onTextChange}
-              idealRange="Abaixo de 0,50"
-              v0={r0.rce} vN={rN.rce} vUnit="" vDec={2} lowerIsBetter={true} isSingle={isSingle}/>
-            <MiniChart unit="" data={chartSeries(av=>calcularTudo(av.peso,av.altura,patient.sexo,idade,av.dobras,av.circs).rce,2)} bands={RCE_BANDS} fallbackColor="#0369a1"/>
-          </div>
-
-        </div>
+          );
+        })}
       </div>
 
       {/* ══════════════════════════════════════════════════════════════
-          HISTÓRICO DE AVALIAÇÕES
+          PARTE 3 — Mapeamento Corporal + Resumo Técnico
+          (só renderiza se aiSummary tiver conteúdo)
       ══════════════════════════════════════════════════════════════ */}
-      <div style={{ breakInside:'avoid' }}>
-        <ReportSection title="Histórico de Avaliações" sub={`Protocolo de composição corporal: ${protoLabel}`}/>
-        <table style={{ width:'100%',borderCollapse:'collapse',fontSize:10 }}>
+      {aiSummary && (
+        <div>
+          <SecHeader title="Mapeamento Corporal" right="Medidas da última avaliação"/>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:20 }}>
+
+            {/* Silhueta com callouts */}
+            <div style={{ display:'flex', justifyContent:'center' }}>
+              <SilhuetaSVG av={lastAv}/>
+            </div>
+
+            {/* Resumo técnico */}
+            <div>
+              <div style={{ fontSize:9, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.12em', color:'#888', marginBottom:10 }}>Resumo Técnico</div>
+              <div style={{ fontSize:10, color:'#333', lineHeight:1.8 }}>
+                {aiSummary.split('\n').map((line, i) => {
+                  if (!line.trim()) return <div key={i} style={{ height:4 }}/>;
+                  const parts = line.split(/\*\*(.*?)\*\*/g).map((part, j) => j % 2 === 1 ? <strong key={j}>{part}</strong> : part);
+                  if (line.trim().match(/^[-•*] /)) {
+                    return (
+                      <div key={i} style={{ display:'flex', gap:6, marginBottom:3 }}>
+                        <span style={{ color:'#0284c7', flexShrink:0 }}>▸</span>
+                        <span>{line.trim().replace(/^[-•*] /, '')}</span>
+                      </div>
+                    );
+                  }
+                  return <div key={i} style={{ marginBottom:4 }}>{parts}</div>;
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════
+          PARTE 4 — Indicadores de Saúde (Gauge horizontal)
+      ══════════════════════════════════════════════════════════════ */}
+      {(rN.rcq != null || rN.rce != null) && (
+        <div>
+          <SecHeader title="Indicadores de Saúde" right="Distribuição de gordura · Risco metabólico"/>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
+
+            {/* RCQ */}
+            {rN.rcq != null && (
+              <div style={{ background:'#fafafa', border:'1px solid #ebebeb', borderRadius:6, padding:'12px 14px' }}>
+                <div style={{ fontSize:12, fontWeight:700, color:'#1a1a1a' }}>Razão Cintura–Quadril (RCQ)</div>
+                <div style={{ fontSize:9, color:'#888', marginBottom:8 }}>
+                  Distribuição de gordura corporal — padrão {isF ? 'ginoide/androide' : 'androide/ginoide'}
+                </div>
+                <div style={{ fontSize:28, fontWeight:700, fontFamily:"'JetBrains Mono',monospace", color:'#1a1a1a', marginBottom:4 }}>
+                  {n(rN.rcq, 2)}
+                </div>
+                <Gauge val={rN.rcq} bands={RCQ_BANDS}/>
+                {rPrev?.rcq != null && (
+                  <div style={{ marginTop:4, fontSize:9, color:'#888' }}>
+                    Anterior: {n(rPrev.rcq, 2)} — <DeltaLine vN={rN.rcq} vP={rPrev.rcq} dec={2} lowerIsBetter={true}/>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* RCE */}
+            {rN.rce != null && (
+              <div style={{ background:'#fafafa', border:'1px solid #ebebeb', borderRadius:6, padding:'12px 14px' }}>
+                <div style={{ fontSize:12, fontWeight:700, color:'#1a1a1a' }}>Razão Cintura–Estatura (RCE)</div>
+                <div style={{ fontSize:9, color:'#888', marginBottom:8 }}>
+                  Risco metabólico — valor ideal abaixo de 0,50
+                </div>
+                <div style={{ fontSize:28, fontWeight:700, fontFamily:"'JetBrains Mono',monospace", color:'#1a1a1a', marginBottom:4 }}>
+                  {n(rN.rce, 2)}
+                </div>
+                <Gauge val={rN.rce} bands={RCE_BANDS}/>
+                {rPrev?.rce != null && (
+                  <div style={{ marginTop:4, fontSize:9, color:'#888' }}>
+                    Anterior: {n(rPrev.rce, 2)} — <DeltaLine vN={rN.rce} vP={rPrev.rce} dec={2} lowerIsBetter={true}/>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════
+          PARTE 5 — Histórico de Avaliações
+      ══════════════════════════════════════════════════════════════ */}
+      <div style={{ breakInside:'avoid', marginTop:8 }}>
+        <SecHeader title="Histórico de Avaliações" right={`Protocolo: ${protoLabel}`}/>
+        <table style={{ width:'100%', borderCollapse:'collapse', fontSize:10 }}>
           <thead>
-            <tr style={{ background:'#f4f4f4' }}>
-              {['Data','Peso','IMC','Gordura %','Gordura kg','Massa Magra','Músculo','Cintura'].map(h=>(
-                <th key={h} style={{ padding:'5px 7px',textAlign:'left',fontWeight:700,color:'#555',fontSize:8.5,textTransform:'uppercase',letterSpacing:'0.05em',borderBottom:'1px solid #ddd' }}>{h}</th>
+            <tr style={{ background:'#1a1a1a' }}>
+              {['Data','Peso','IMC','Gordura %','Gordura kg','Massa Magra','Músculo','Cintura'].map(h => (
+                <th key={h} style={{ padding:'6px 8px', textAlign:'left', fontWeight:700, color:'#fff', fontSize:8.5, textTransform:'uppercase', letterSpacing:'0.05em' }}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {avs.slice().reverse().map((av,idx)=>{
-              const r=calcularTudo(av.peso,av.altura,patient.sexo,idade,av.dobras,av.circs);
-              const g=getProtoG(av);
-              const mg=g!=null?av.peso*g/100:null, mlg=g!=null?av.peso*(1-g/100):null;
+            {avs.slice().reverse().map((av, idx) => {
+              const r = calcularTudo(av.peso, av.altura, patient.sexo, idade, av.dobras, av.circs);
+              const g = getProtoG(av);
+              const mg = g != null ? av.peso * g / 100 : null;
+              const mlg = g != null ? av.peso * (1 - g / 100) : null;
+              const isActual = idx === 0;
               return (
-                <tr key={av.id} style={{ borderBottom:'1px solid #eee',background:idx===0?'#f0fdf4':'transparent' }}>
-                  <td style={{ padding:'5px 7px',fontWeight:idx===0?700:400 }}>
-                    {_fmtData(av.data)}{idx===0&&<span style={{ fontSize:7.5,color:'#16a34a',marginLeft:4,fontWeight:700,textTransform:'uppercase' }}>atual</span>}
+                <tr key={av.id} style={{
+                  borderBottom:'1px solid #eee',
+                  background: isActual ? '#f0fdf4' : idx % 2 === 0 ? '#fff' : '#fafafa',
+                  borderLeft: isActual ? '2px solid #16a34a' : '2px solid transparent',
+                }}>
+                  <td style={{ padding:'5px 8px', fontWeight: isActual ? 700 : 400, whiteSpace:'nowrap' }}>
+                    {_fmtData(av.data)}
+                    {isActual && <span style={{ fontSize:7.5, color:'#16a34a', marginLeft:4, fontWeight:700, textTransform:'uppercase' }}>atual</span>}
                   </td>
-                  <td style={{ padding:'5px 7px',fontFamily:'monospace' }}>{n(av.peso)} kg</td>
-                  <td style={{ padding:'5px 7px',fontFamily:'monospace' }}>{n(r.imc)}</td>
-                  <td style={{ padding:'5px 7px',fontFamily:'monospace' }}>{g!=null?n(g)+'%':'—'}</td>
-                  <td style={{ padding:'5px 7px',fontFamily:'monospace' }}>{mg!=null?n(mg)+' kg':'—'}</td>
-                  <td style={{ padding:'5px 7px',fontFamily:'monospace' }}>{mlg!=null?n(mlg)+' kg':'—'}</td>
-                  <td style={{ padding:'5px 7px',fontFamily:'monospace' }}>{n(r.mm)} kg</td>
-                  <td style={{ padding:'5px 7px',fontFamily:'monospace' }}>{av.circs?.cintura?n(av.circs.cintura,0)+' cm':'—'}</td>
+                  <td style={{ padding:'5px 8px', fontFamily:'monospace' }}>{n(av.peso)} kg</td>
+                  <td style={{ padding:'5px 8px', fontFamily:'monospace' }}>{n(r.imc)}</td>
+                  <td style={{ padding:'5px 8px', fontFamily:'monospace' }}>{g != null ? n(g) + '%' : '—'}</td>
+                  <td style={{ padding:'5px 8px', fontFamily:'monospace' }}>{mg != null ? n(mg) + ' kg' : '—'}</td>
+                  <td style={{ padding:'5px 8px', fontFamily:'monospace' }}>{mlg != null ? n(mlg) + ' kg' : '—'}</td>
+                  <td style={{ padding:'5px 8px', fontFamily:'monospace' }}>{n(r.mm)} kg</td>
+                  <td style={{ padding:'5px 8px', fontFamily:'monospace' }}>{av.circs?.cintura ? n(av.circs.cintura, 0) + ' cm' : '—'}</td>
                 </tr>
               );
             })}
@@ -965,54 +1082,21 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, tex
         </table>
       </div>
 
-      {/* ── Medidas Brutas: dobras e circunferências (PDF) ── */}
-      {(() => {
-        const dobrasDefs = [
-          {n:1,key:"tricipital",   label:"Tricipital",     unit:"mm", dec:1},
-          {n:2,key:"biceps",       label:"Bíceps",         unit:"mm", dec:1},
-          {n:3,key:"subescapular", label:"Subescapular",   unit:"mm", dec:1},
-          {n:4,key:"axilar",       label:"Axilar média",   unit:"mm", dec:1},
-          {n:5,key:"suprailíaca",  label:"Suprailíaca",    unit:"mm", dec:1},
-          {n:6,key:"supraespinal", label:"Supraespinal",   unit:"mm", dec:1},
-          {n:7,key:"abdominal",    label:"Abdominal",      unit:"mm", dec:1},
-          {n:8,key:"coxa",         label:"Coxa anterior",  unit:"mm", dec:1},
-          {n:9,key:"panturrilha",  label:"Panturrilha",    unit:"mm", dec:1},
-        ];
-        const circsDefs = [
-          {n:"A",key:"torax",          label:"Tórax",          unit:"cm", dec:1},
-          {n:"B",key:"braco",          label:"Braço relaxado", unit:"cm", dec:1},
-          {n:"C",key:"braco_contraido",label:"Braço contraído",unit:"cm", dec:1},
-          {n:"D",key:"cintura",        label:"Cintura",        unit:"cm", dec:1},
-          {n:"E",key:"abdomen",        label:"Abdômen",        unit:"cm", dec:1},
-          {n:"F",key:"quadril",        label:"Quadril",        unit:"cm", dec:1},
-          {n:"G",key:"coxa",           label:"Coxa",           unit:"cm", dec:1},
-          {n:"H",key:"panturrilha",    label:"Panturrilha",    unit:"cm", dec:1},
-        ];
-
-        const dobrasRows = dobrasDefs.reduce((acc, d) => {
-          const vals = avs.map(av => av.dobras?.[d.key] ?? null);
-          if (vals.every(v => v == null)) return acc;
-          const vL = vals[vals.length-1], vP = vals.length >= 2 ? vals[vals.length-2] : null;
-          acc.push({...d, vals, delta: vL != null && vP != null ? vL - vP : null});
-          return acc;
-        }, []);
-
-        const circsRows = circsDefs.reduce((acc, c) => {
-          const vals = avs.map(av => av.circs?.[c.key] ?? null);
-          if (vals.every(v => v == null)) return acc;
-          const vL = vals[vals.length-1], vP = vals.length >= 2 ? vals[vals.length-2] : null;
-          acc.push({...c, vals, delta: vL != null && vP != null ? vL - vP : null});
-          return acc;
-        }, []);
-
-        if (dobrasRows.length === 0 && circsRows.length === 0) return null;
-
-        const thStyle = { padding:'4px 7px', textAlign:'center', fontSize:8, fontWeight:700, color:'#555', textTransform:'uppercase', letterSpacing:'0.06em', borderBottom:'1px solid #ddd', whiteSpace:'nowrap', background:'#f4f4f4' };
+      {/* ══════════════════════════════════════════════════════════════
+          PARTE 6 — Medidas Brutas com Var.Total e Sparkline
+      ══════════════════════════════════════════════════════════════ */}
+      {(dobrasRows.length > 0 || circsRows.length > 0) && (() => {
+        const thStyle = {
+          padding:'4px 7px', textAlign:'center', fontSize:8, fontWeight:700,
+          color:'#fff', textTransform:'uppercase', letterSpacing:'0.06em',
+          borderBottom:'1px solid #444', whiteSpace:'nowrap', background:'#1a1a1a',
+        };
         const tdStyle = { padding:'4px 7px', textAlign:'center', fontFamily:'monospace', fontSize:9 };
+        const showExtra = avs.length > 1;
 
         return (
-          <div style={{ marginTop:14, breakInside:'avoid' }}>
-            <ReportSection title="Medidas Brutas" sub="Dobras cutâneas (mm) · Circunferências (cm)"/>
+          <div style={{ marginTop:8, breakInside:'avoid' }}>
+            <SecHeader title="Medidas Brutas" right="Dobras cutâneas (mm) · Circunferências (cm)"/>
             <table style={{ width:'100%', borderCollapse:'collapse', fontSize:9 }}>
               <thead>
                 <tr>
@@ -1020,12 +1104,15 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, tex
                   {avs.map((av, idx) => {
                     const isLast = idx === avs.length - 1;
                     return (
-                      <th key={av.id} style={{ ...thStyle, fontWeight: isLast ? 800 : 700, color: isLast ? '#2563eb' : '#555', background: isLast ? '#eff6ff' : '#f4f4f4' }}>
-                        {_fmtData(av.data)}{isLast && <span style={{ display:'block', fontSize:6.5, color:'#16a34a', textTransform:'uppercase' }}>atual</span>}
+                      <th key={av.id} style={{ ...thStyle, fontWeight: isLast ? 800 : 700, background: isLast ? '#16a34a' : '#1a1a1a' }}>
+                        {_fmtData(av.data)}
+                        {isLast && <span style={{ display:'block', fontSize:6.5, textTransform:'uppercase', color:'#d1fae5' }}>atual</span>}
                       </th>
                     );
                   })}
-                  {avs.length > 1 && <th style={{ ...thStyle }}>Δ ant.</th>}
+                  {showExtra && <th style={{ ...thStyle, background:'#374151' }}>Δ ant.</th>}
+                  {showExtra && <th style={{ ...thStyle, background:'#374151' }}>Var. Total</th>}
+                  {showExtra && <th style={{ ...thStyle, background:'#374151' }}>Evolução</th>}
                 </tr>
               </thead>
               <tbody>
@@ -1045,17 +1132,28 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, tex
                       </span>
                     </td>
                     {d.vals.map((v, idx) => (
-                      <td key={idx} style={{ ...tdStyle, background: idx===d.vals.length-1 ? '#eff6ff' : 'transparent' }}>
+                      <td key={idx} style={{ ...tdStyle, background: idx === d.vals.length - 1 ? '#f0fdf4' : idx % 2 === 0 ? '#fff' : '#fafafa' }}>
                         {v != null ? n(v, d.dec) : '—'}
                       </td>
                     ))}
-                    {avs.length > 1 && (
-                      <td style={{ ...tdStyle, fontWeight:600, color: d.delta==null?'#999':d.delta<-0.05?'#16a34a':d.delta>0.05?'#dc2626':'#888' }}>
-                        {d.delta==null ? '—' : (d.delta>0?'+':'')+n(d.delta, d.dec)}
+                    {showExtra && (
+                      <td style={{ ...tdStyle, fontWeight:600, color: d.delta == null ? '#999' : d.delta < -0.05 ? '#16a34a' : d.delta > 0.05 ? '#dc2626' : '#888' }}>
+                        {d.delta == null ? '—' : (d.delta > 0 ? '+' : '') + n(d.delta, d.dec)}
+                      </td>
+                    )}
+                    {showExtra && (
+                      <td style={{ ...tdStyle, fontWeight:700, color: d.varTotal == null ? '#999' : d.varTotal < -0.05 ? '#16a34a' : d.varTotal > 0.05 ? '#dc2626' : '#888' }}>
+                        {d.varTotal == null ? '—' : (d.varTotal > 0 ? '+' : '') + n(d.varTotal, d.dec)}
+                      </td>
+                    )}
+                    {showExtra && (
+                      <td style={{ ...tdStyle }}>
+                        <SparkRow vals={d.vals} lowerIsBetter={true}/>
                       </td>
                     )}
                   </tr>
                 ))}
+
                 {circsRows.length > 0 && (
                   <tr>
                     <td colSpan={99} style={{ padding:'4px 7px 2px', background:'rgba(37,99,235,0.06)', fontSize:8, fontWeight:700, color:'rgba(37,99,235,0.8)', textTransform:'uppercase', letterSpacing:'0.07em' }}>
@@ -1072,13 +1170,23 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, tex
                       </span>
                     </td>
                     {c.vals.map((v, idx) => (
-                      <td key={idx} style={{ ...tdStyle, background: idx===c.vals.length-1 ? '#eff6ff' : 'transparent' }}>
+                      <td key={idx} style={{ ...tdStyle, background: idx === c.vals.length - 1 ? '#f0fdf4' : idx % 2 === 0 ? '#fff' : '#fafafa' }}>
                         {v != null ? n(v, c.dec) : '—'}
                       </td>
                     ))}
-                    {avs.length > 1 && (
-                      <td style={{ ...tdStyle, fontWeight:600, color: c.delta==null?'#999':c.delta<-0.05?'#16a34a':c.delta>0.05?'#dc2626':'#888' }}>
-                        {c.delta==null ? '—' : (c.delta>0?'+':'')+n(c.delta, c.dec)}
+                    {showExtra && (
+                      <td style={{ ...tdStyle, fontWeight:600, color: c.delta == null ? '#999' : c.delta < -0.05 ? '#16a34a' : c.delta > 0.05 ? '#dc2626' : '#888' }}>
+                        {c.delta == null ? '—' : (c.delta > 0 ? '+' : '') + n(c.delta, c.dec)}
+                      </td>
+                    )}
+                    {showExtra && (
+                      <td style={{ ...tdStyle, fontWeight:700, color: c.varTotal == null ? '#999' : c.varTotal < -0.05 ? '#16a34a' : c.varTotal > 0.05 ? '#dc2626' : '#888' }}>
+                        {c.varTotal == null ? '—' : (c.varTotal > 0 ? '+' : '') + n(c.varTotal, c.dec)}
+                      </td>
+                    )}
+                    {showExtra && (
+                      <td style={{ ...tdStyle }}>
+                        <SparkRow vals={c.vals} lowerIsBetter={false}/>
                       </td>
                     )}
                   </tr>
@@ -1089,30 +1197,18 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, tex
         );
       })()}
 
-      {/* ── Resumo de evolução (IA) ── */}
-      {aiSummary && (
-        <div style={{ marginTop:14, breakInside:'avoid', padding:'10px 13px', background:'#f0f9ff', borderRadius:6, border:'1px solid #bae6fd', borderLeft:'3px solid #0284c7' }}>
-          <div style={{ fontSize:8.5, fontWeight:700, color:'#0284c7', textTransform:'uppercase', letterSpacing:'0.07em', marginBottom:5 }}>✦ Resumo de Evolução</div>
-          <div style={{ fontSize:9.5, color:'#1e3a5f', lineHeight:1.75 }}>
-            {aiSummary.split('\n').map((line, i) => {
-              if (!line.trim()) return <div key={i} style={{ height:4 }} />;
-              const parts = line.split(/\*\*(.*?)\*\*/g).map((part, j) => j % 2 === 1 ? <strong key={j}>{part}</strong> : part);
-              if (line.trim().match(/^[-•*] /)) return <div key={i} style={{ display:'flex', gap:6, marginBottom:2 }}><span style={{ color:'#0284c7', flexShrink:0 }}>▸</span><span>{line.trim().replace(/^[-•*] /,'')}</span></div>;
-              return <div key={i} style={{ marginBottom:4 }}>{parts}</div>;
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* ── Notas metodológicas ── */}
-      <div style={{ marginTop:14,padding:'9px 13px',background:'#fafafa',borderRadius:6,border:'1px solid #eee' }}>
-        <div style={{ fontSize:8.5,fontWeight:700,color:'#888',textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:4 }}>Notas Metodológicas</div>
+      {/* ══════════════════════════════════════════════════════════════
+          PARTE 7 — Notas Metodológicas
+      ══════════════════════════════════════════════════════════════ */}
+      <div style={{ marginTop:14, padding:'9px 13px', background:'#fafafa', borderRadius:6, border:'1px solid #ebebeb', breakInside:'avoid' }}>
+        <div style={{ fontSize:8.5, fontWeight:700, color:'#888', textTransform:'uppercase', letterSpacing:'0.07em', marginBottom:4 }}>Notas Metodológicas</div>
         {editMode
           ? <AutoTextarea value={texts.notas} onChange={v => onTextChange('notas', v)}
-              style={{ fontSize:9, color:'#666', lineHeight:1.7, border:'none', borderBottom:'1.5px dashed #ccc', background:'transparent', fontFamily:"'DM Sans',sans-serif", padding:0, outline:'none', width:'100%', boxSizing:'border-box' }} />
-          : <div style={{ fontSize:9,color:'#666',lineHeight:1.7 }}>{texts.notas}</div>
+              style={{ fontSize:8.5, color:'#666', lineHeight:1.7, border:'none', borderBottom:'1.5px dashed #ccc', background:'transparent', fontFamily:"'DM Sans',sans-serif", padding:0, outline:'none', width:'100%', boxSizing:'border-box' }} />
+          : <div style={{ fontSize:8.5, color:'#666', lineHeight:1.7 }}>{texts.notas}</div>
         }
       </div>
+
     </div>
   );
 };
