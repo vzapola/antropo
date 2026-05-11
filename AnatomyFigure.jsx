@@ -122,6 +122,7 @@ const AnatomyFigure = ({ mode = "dobras", focusedKey = null, sexo = "F" }) => {
         href={imgSrc}
         x="0" y="0" width="200" height="440"
         preserveAspectRatio="xMidYMid meet"
+        style={{ mixBlendMode: "multiply" }}
       />
       {children}
     </svg>

@@ -1,4 +1,4 @@
-// ============================================================
+﻿// ============================================================
 // PatientView.jsx — Painel direito: detalhe + tabs contextuais
 // ============================================================
 
@@ -738,7 +738,7 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, tex
     return (
       <svg viewBox="0 0 220 400" width="100%" style={{ maxWidth:220, display:'block' }}>
         <image href={imgSrc} x={isF?36:31} y={0} width={isF?148:158} height={400}
-          preserveAspectRatio="xMidYMid meet"/>
+          preserveAspectRatio="xMidYMid meet" style={{ mixBlendMode:"multiply" }}/>
         {callouts.map(c => {
           const rawVal = c.src === 'circs' ? av.circs?.[c.key] : av.dobras?.[c.key];
           const valStr = n(rawVal, c.dec) + ' ' + c.unit;
