@@ -32,15 +32,15 @@ const AnatomyFigure = ({ mode = "dobras", focusedKey = null, sexo = "F" }) => {
   // Costas (view B) usam mesma imagem para ambos os sexos → cx inalterado
   // Frente (view F) com cx ajustados proporcionalmente para mulher_frente.png
   const DOBRA_POINTS_F = [
-    { n: 1,  key: "tricipital",   label: "Tricipital",    view: "B", cx: 40,  cy: 140 },
-    { n: 2,  key: "biceps",       label: "Bíceps",        view: "F", cx: 44,  cy: 138 },
+    { n: 1,  key: "tricipital",   label: "Tricipital",    view: "B", cx: 50,  cy: 140 },
+    { n: 2,  key: "biceps",       label: "Bíceps",        view: "F", cx: 52,  cy: 138 },
     { n: 3,  key: "subescapular", label: "Subescapular",  view: "B", cx: 88,  cy: 142 },
-    { n: 4,  key: "axilar",       label: "Axilar média",  view: "F", cx: 64,  cy: 138 },
-    { n: 5,  key: "suprailíaca",  label: "Suprailíaca",   view: "F", cx: 133, cy: 200 },
-    { n: 6,  key: "supraespinal", label: "Supraespinal",  view: "F", cx: 130, cy: 210 },
-    { n: 7,  key: "abdominal",    label: "Abdominal",     view: "F", cx: 107, cy: 178 },
-    { n: 8,  key: "coxa",         label: "Coxa anterior", view: "F", cx: 85,  cy: 290 },
-    { n: 9,  key: "panturrilha",  label: "Panturrilha",   view: "F", cx: 83,  cy: 365 },
+    { n: 4,  key: "axilar",       label: "Axilar média",  view: "F", cx: 83,  cy: 138 },
+    { n: 5,  key: "suprailíaca",  label: "Suprailíaca",   view: "F", cx: 83, cy: 200 },
+    { n: 6,  key: "supraespinal", label: "Supraespinal",  view: "F", cx: 93, cy: 200 },
+    { n: 7,  key: "abdominal",    label: "Abdominal",     view: "F", cx: 91, cy: 190 },
+    { n: 8,  key: "coxa",         label: "Coxa anterior", view: "F", cx: 85,  cy: 250 },
+    { n: 9,  key: "panturrilha",  label: "Panturrilha",   view: "F", cx: 83,  cy: 345 },
   ];
 
   const CIRC_LINES_M = [
@@ -56,14 +56,14 @@ const AnatomyFigure = ({ mode = "dobras", focusedKey = null, sexo = "F" }) => {
 
   // x1/x2 ajustados para mulher_frente.png (corpo mais estreito/centralizado)
   const CIRC_LINES_F = [
-    { n: "A", key: "torax",           label: "Tórax",           y: 122, x1: 61,  x2: 139 },
-    { n: "B", key: "braco",           label: "Braço relaxado",  y: 135, x1: 37,  x2: 64  },
-    { n: "C", key: "braco_contraido", label: "Braço contraído", y: 138, x1: 37,  x2: 64  },
-    { n: "D", key: "cintura",         label: "Cintura",         y: 160, x1: 64,  x2: 136 },
-    { n: "E", key: "abdomen",         label: "Abdômen",         y: 185, x1: 61,  x2: 139 },
+    { n: "A", key: "torax",           label: "Tórax",           y: 133, x1: 64,  x2: 143 },
+    { n: "B", key: "braco",           label: "Braço relaxado",  y: 135, x1: 45,  x2: 70  },
+    { n: "C", key: "braco_contraido", label: "Braço contraído", y: 138, x1: 45,  x2: 70  },
+    { n: "D", key: "cintura",         label: "Cintura",         y: 175, x1: 67,  x2: 138 },
+    { n: "E", key: "abdomen",         label: "Abdômen",         y: 190, x1: 65,  x2: 143 },
     { n: "F", key: "quadril",         label: "Quadril",         y: 233, x1: 57,  x2: 143 },
-    { n: "G", key: "coxa",            label: "Coxa",            y: 272, x1: 64,  x2: 97  },
-    { n: "H", key: "panturrilha",     label: "Panturrilha",     y: 349, x1: 66,  x2: 97  },
+    { n: "G", key: "coxa",            label: "Coxa",            y: 272, x1: 64,  x2: 102  },
+    { n: "H", key: "panturrilha",     label: "Panturrilha",     y: 349, x1: 68,  x2: 97  },
   ];
 
   const DOBRA_POINTS = sexo === "F" ? DOBRA_POINTS_F : DOBRA_POINTS_M;
