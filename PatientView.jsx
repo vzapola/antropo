@@ -727,14 +727,15 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, tex
   //   cy_SI = cy_AF * 0.909  (400/440)
   const SilhuetaImg = ({ av }) => {
     const imgSrc = isF ? 'Silhuetas/mulher_frente.png' : 'Silhuetas/homem_frente.png';
+    // Subescapular omitida: medida das costas, não representável na silhueta frontal
+    // Espaçamento vertical mínimo de 22px entre callouts do mesmo lado (fonte 9pt)
     const callouts = [
-      { key:'braco',        src:'circs',  label:'Braço',        unit:'cm', dec:1, cx: isF?63:49,  cy:123, side:'left'  },
-      { key:'tricipital',   src:'dobras', label:'Tricipital',   unit:'mm', dec:1, cx: isF?157:171, cy:123, side:'right' },
-      { key:'subescapular', src:'dobras', label:'Subescapular', unit:'mm', dec:1, cx: isF?65:62,  cy:116, side:'left'  },
-      { key:'cintura',      src:'circs',  label:'Cintura',      unit:'cm', dec:1, cx: isF?145:145, cy: isF?159:145, side:'right' },
-      { key:'abdominal',    src:'dobras', label:'Abdominal',    unit:'mm', dec:1, cx: isF?145:145, cy: isF?171:162, side:'right' },
-      { key:'quadril',      src:'circs',  label:'Quadril',      unit:'cm', dec:1, cx: isF?74:68,  cy:212, side:'left'  },
-      { key:'coxa',         src:'circs',  label:'Coxa',         unit:'cm', dec:1, cx: isF?143:145, cy:247, side:'right' },
+      { key:'braco',      src:'circs',  label:'Braço',      unit:'cm', dec:1, cx: isF?63:49,  cy:122, side:'left'  },
+      { key:'tricipital', src:'dobras', label:'Tricipital', unit:'mm', dec:1, cx: isF?157:171, cy:122, side:'right' },
+      { key:'cintura',    src:'circs',  label:'Cintura',    unit:'cm', dec:1, cx: isF?145:145, cy: isF?158:144, side:'right' },
+      { key:'abdominal',  src:'dobras', label:'Abdominal',  unit:'mm', dec:1, cx: isF?145:145, cy: isF?182:168, side:'right' },
+      { key:'quadril',    src:'circs',  label:'Quadril',    unit:'cm', dec:1, cx: isF?74:68,  cy:215, side:'left'  },
+      { key:'coxa',       src:'circs',  label:'Coxa',       unit:'cm', dec:1, cx: isF?143:145, cy:250, side:'right' },
     ].filter(c => {
       const v = c.src === 'circs' ? av.circs?.[c.key] : av.dobras?.[c.key];
       return v != null;
@@ -752,9 +753,9 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, tex
           return (
             <g key={c.key}>
               <line x1={c.cx} y1={c.cy} x2={lineX2} y2={c.cy} stroke="#bbb" strokeWidth={0.7} strokeDasharray="2,2"/>
-              <circle cx={c.cx} cy={c.cy} r={2.5} fill="#1a1a1a"/>
-              <text x={lineX2} y={c.cy - 3} textAnchor={anchor} fontSize={7} fill="#555" fontFamily="'DM Sans',sans-serif">{c.label}</text>
-              <text x={lineX2} y={c.cy + 7} textAnchor={anchor} fontSize={7} fill="#1a1a1a" fontFamily="'JetBrains Mono',monospace" fontWeight="700">{valStr}</text>
+              <circle cx={c.cx} cy={c.cy} r={3} fill="#1a1a1a"/>
+              <text x={lineX2} y={c.cy - 5} textAnchor={anchor} fontSize={9} fill="#555" fontFamily="'DM Sans',sans-serif">{c.label}</text>
+              <text x={lineX2} y={c.cy + 9} textAnchor={anchor} fontSize={9} fill="#1a1a1a" fontFamily="'JetBrains Mono',monospace" fontWeight="700">{valStr}</text>
             </g>
           );
         })}
@@ -1010,6 +1011,7 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, tex
                     Anterior: {n(rPrev.rcq, 2)} — <DeltaLine vN={rN.rcq} vP={rPrev.rcq} dec={2} lowerIsBetter={true}/>
                   </div>
                 )}
+                <div style={{ marginTop:10, fontSize:10, color:'#444', lineHeight:1.6 }}>{texts.rcq}</div>
               </div>
             )}
 
@@ -1029,6 +1031,7 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, tex
                     Anterior: {n(rPrev.rce, 2)} — <DeltaLine vN={rN.rce} vP={rPrev.rce} dec={2} lowerIsBetter={true}/>
                   </div>
                 )}
+                <div style={{ marginTop:10, fontSize:10, color:'#444', lineHeight:1.6 }}>{texts.rce}</div>
               </div>
             )}
           </div>
@@ -1077,6 +1080,27 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, tex
             })}
           </tbody>
         </table>
+      </div>
+
+      {/* ══════════════════════════════════════════════════════════════
+          PARTE 5B — Interpretação dos Indicadores
+      ══════════════════════════════════════════════════════════════ */}
+      <div style={{ marginTop:8 }}>
+        <SecHeader title="O que cada indicador significa" right="Guia de interpretação para o paciente"/>
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10 }}>
+          <ReportCard label="% Gordura" value={gN != null ? n(gN)+'%' : '—'} badge={gN != null ? classPctG(gN, patient.sexo) : null}
+            explain={texts.pctG} v0={gFirst} vN={gN} vUnit="%" vDec={1} lowerIsBetter={true} isSingle={avs.length < 2}/>
+          <ReportCard label="IMC" value={n(rN.imc)} unit="kg/m²" badge={rN.classIMC}
+            explain={texts.imc} v0={rFirst?.imc} vN={rN.imc} vUnit="kg/m²" vDec={1} lowerIsBetter={true} isSingle={avs.length < 2}/>
+          <ReportCard label="Massa Magra" value={mlgN != null ? n(mlgN)+' kg' : '—'}
+            explain={texts.massaMagra} v0={gFirst != null ? firstAv.peso*(1-gFirst/100) : null} vN={mlgN} vUnit="kg" vDec={1} lowerIsBetter={false} isSingle={avs.length < 2}/>
+          <ReportCard label="Músculo Esquelético" value={n(rN.mm)+' kg'}
+            explain={texts.musculo} v0={rFirst?.mm} vN={rN.mm} vUnit="kg" vDec={1} lowerIsBetter={false} isSingle={avs.length < 2}/>
+          <ReportCard label="Cintura" value={lastAv.circs?.cintura ? n(lastAv.circs.cintura,1)+' cm' : '—'}
+            explain={texts.cintura} v0={firstAv.circs?.cintura} vN={lastAv.circs?.cintura} vUnit="cm" vDec={1} lowerIsBetter={true} isSingle={avs.length < 2}/>
+          <ReportCard label="Gordura (kg)" value={mgN != null ? n(mgN)+' kg' : '—'}
+            explain={texts.gordKg} v0={gFirst != null ? firstAv.peso*gFirst/100 : null} vN={mgN} vUnit="kg" vDec={1} lowerIsBetter={true} isSingle={avs.length < 2}/>
+        </div>
       </div>
 
       {/* ══════════════════════════════════════════════════════════════
