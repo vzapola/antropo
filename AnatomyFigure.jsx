@@ -9,13 +9,15 @@ const AnatomyFigure = ({ mode = "dobras", focusedKey = null, sexo = "F" }) => {
   const IMG_FRENTE_SRC = sexo === "F" ? "Silhuetas/mulher_frente.png" : "Silhuetas/homem_frente.png";
   const IMG_COSTAS_SRC = sexo === "F" ? "Silhuetas/mulher_costas.png" : "Silhuetas/homem_costas.png";
 
-  // ViewBox 0 0 200 440
-  // Referência da imagem (fundo branco, 369x930px original → escala 200x440):
-  //   Ombros y≈80  |  Axila y≈110  |  Peitoral y≈120  |  Cintura y≈185 (menor)
-  //   Umbigo y≈210 |  Abdômen máx y≈230  |  Quadril y≈260  |  Entrecoxas y≈300
-  //   Joelhos y≈360 | Pés y≈440
-  //   Braços: x≈20-46 (esq/dir do viewer)  Torso: x≈58-142
-  const DOBRA_POINTS = [
+  // ── Coordenadas separadas por sexo ─────────────────────────────────
+  // ViewBox 0 0 200 440, preserveAspectRatio="xMidYMid meet" (height constrains):
+  //   homem_frente.png  668×1696 → W renderizado ≈ 173px, offsetX ≈ 13 → corpo x≈13..186
+  //   mulher_frente.png 625×1696 → W renderizado ≈ 162px, offsetX ≈ 19 → corpo x≈19..181
+  //   *costas: ambas 568×1696 → mesmo tamanho, sem diferença de offset
+  // Fórmula usada para converter cx_M → cx_F:
+  //   cx_F = 19 + (cx_M - 13) * (162/173)
+
+  const DOBRA_POINTS_M = [
     { n: 1,  key: "tricipital",   label: "Tricipital",    view: "B", cx: 40,  cy: 140 },
     { n: 2,  key: "biceps",       label: "Bíceps",        view: "F", cx: 40,  cy: 138 },
     { n: 3,  key: "subescapular", label: "Subescapular",  view: "B", cx: 88,  cy: 142 },
@@ -27,13 +29,21 @@ const AnatomyFigure = ({ mode = "dobras", focusedKey = null, sexo = "F" }) => {
     { n: 9,  key: "panturrilha",  label: "Panturrilha",   view: "F", cx: 82,  cy: 365 },
   ];
 
-  // Linhas de circunferências ajustadas:
-  //   B e C (braço): na zona do braço (x1=22,x2=46 viewer-left arm)
-  //   D cintura: acima do umbigo (y≈185), menor circunferência
-  //   E abdômen: linha do umbigo (y≈215), maior circunferência
-  //   F quadril: maior proeminência glútea (y≈262)
-  //   G coxa: terço superior da coxa (y≈290)
-  const CIRC_LINES = [
+  // Costas (view B) usam mesma imagem para ambos os sexos → cx inalterado
+  // Frente (view F) com cx ajustados proporcionalmente para mulher_frente.png
+  const DOBRA_POINTS_F = [
+    { n: 1,  key: "tricipital",   label: "Tricipital",    view: "B", cx: 40,  cy: 140 },
+    { n: 2,  key: "biceps",       label: "Bíceps",        view: "F", cx: 44,  cy: 138 },
+    { n: 3,  key: "subescapular", label: "Subescapular",  view: "B", cx: 88,  cy: 142 },
+    { n: 4,  key: "axilar",       label: "Axilar média",  view: "F", cx: 64,  cy: 138 },
+    { n: 5,  key: "suprailíaca",  label: "Suprailíaca",   view: "F", cx: 133, cy: 200 },
+    { n: 6,  key: "supraespinal", label: "Supraespinal",  view: "F", cx: 130, cy: 210 },
+    { n: 7,  key: "abdominal",    label: "Abdominal",     view: "F", cx: 107, cy: 178 },
+    { n: 8,  key: "coxa",         label: "Coxa anterior", view: "F", cx: 85,  cy: 290 },
+    { n: 9,  key: "panturrilha",  label: "Panturrilha",   view: "F", cx: 83,  cy: 365 },
+  ];
+
+  const CIRC_LINES_M = [
     { n: "A", key: "torax",           label: "Tórax",           y: 122, x1: 58,  x2: 142 },
     { n: "B", key: "braco",           label: "Braço relaxado",  y: 135, x1: 33,  x2: 62  },
     { n: "C", key: "braco_contraido", label: "Braço contraído", y: 138, x1: 33,  x2: 62  },
@@ -43,6 +53,21 @@ const AnatomyFigure = ({ mode = "dobras", focusedKey = null, sexo = "F" }) => {
     { n: "G", key: "coxa",            label: "Coxa",            y: 272, x1: 62,  x2: 96  },
     { n: "H", key: "panturrilha",     label: "Panturrilha",     y: 349, x1: 64,  x2: 96  },
   ];
+
+  // x1/x2 ajustados para mulher_frente.png (corpo mais estreito/centralizado)
+  const CIRC_LINES_F = [
+    { n: "A", key: "torax",           label: "Tórax",           y: 122, x1: 61,  x2: 139 },
+    { n: "B", key: "braco",           label: "Braço relaxado",  y: 135, x1: 37,  x2: 64  },
+    { n: "C", key: "braco_contraido", label: "Braço contraído", y: 138, x1: 37,  x2: 64  },
+    { n: "D", key: "cintura",         label: "Cintura",         y: 160, x1: 64,  x2: 136 },
+    { n: "E", key: "abdomen",         label: "Abdômen",         y: 185, x1: 61,  x2: 139 },
+    { n: "F", key: "quadril",         label: "Quadril",         y: 233, x1: 57,  x2: 143 },
+    { n: "G", key: "coxa",            label: "Coxa",            y: 272, x1: 64,  x2: 97  },
+    { n: "H", key: "panturrilha",     label: "Panturrilha",     y: 349, x1: 66,  x2: 97  },
+  ];
+
+  const DOBRA_POINTS = sexo === "F" ? DOBRA_POINTS_F : DOBRA_POINTS_M;
+  const CIRC_LINES   = sexo === "F" ? CIRC_LINES_F   : CIRC_LINES_M;
 
   const dobraKeys = new Set(DOBRA_POINTS.map(p => p.key));
   const circKeys  = new Set(CIRC_LINES.map(c => c.key));
