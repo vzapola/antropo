@@ -18,14 +18,14 @@ const AnatomyFigure = ({ mode = "dobras", focusedKey = null, sexo = "F" }) => {
   //   cx_F = 19 + (cx_M - 13) * (162/173)
 
   const DOBRA_POINTS_M = [
-    { n: 1,  key: "tricipital",   label: "Tricipital",    view: "B", cx: 40,  cy: 140 },
+    { n: 1,  key: "tricipital",   label: "Tricipital",    view: "B", cx: 42,  cy: 140 },
     { n: 2,  key: "biceps",       label: "Bíceps",        view: "F", cx: 40,  cy: 138 },
-    { n: 3,  key: "subescapular", label: "Subescapular",  view: "B", cx: 88,  cy: 142 },
+    { n: 3,  key: "subescapular", label: "Subescapular",  view: "B", cx: 90,  cy: 140 },
     { n: 4,  key: "axilar",       label: "Axilar média",  view: "F", cx: 62,  cy: 138 },
-    { n: 5,  key: "suprailíaca",  label: "Suprailíaca",   view: "F", cx: 136, cy: 200 },
-    { n: 6,  key: "supraespinal", label: "Supraespinal",  view: "F", cx: 132, cy: 210 },
-    { n: 7,  key: "abdominal",    label: "Abdominal",     view: "F", cx: 108, cy: 178 },
-    { n: 8,  key: "coxa",         label: "Coxa anterior", view: "F", cx: 84,  cy: 290 },
+    { n: 5,  key: "suprailíaca",  label: "Suprailíaca",   view: "F", cx: 62, cy: 200 },
+    { n: 6,  key: "supraespinal", label: "Supraespinal",  view: "F", cx: 78, cy: 200 },
+    { n: 7,  key: "abdominal",    label: "Abdominal",     view: "F", cx: 80, cy: 178 },
+    { n: 8,  key: "coxa",         label: "Coxa anterior", view: "F", cx: 78,  cy: 250 },
     { n: 9,  key: "panturrilha",  label: "Panturrilha",   view: "F", cx: 82,  cy: 365 },
   ];
 
@@ -33,13 +33,13 @@ const AnatomyFigure = ({ mode = "dobras", focusedKey = null, sexo = "F" }) => {
   // Frente (view F) com cx ajustados proporcionalmente para mulher_frente.png
   const DOBRA_POINTS_F = [
     { n: 1,  key: "tricipital",   label: "Tricipital",    view: "B", cx: 50,  cy: 140 },
-    { n: 2,  key: "biceps",       label: "Bíceps",        view: "F", cx: 52,  cy: 138 },
-    { n: 3,  key: "subescapular", label: "Subescapular",  view: "B", cx: 88,  cy: 142 },
-    { n: 4,  key: "axilar",       label: "Axilar média",  view: "F", cx: 83,  cy: 138 },
-    { n: 5,  key: "suprailíaca",  label: "Suprailíaca",   view: "F", cx: 83, cy: 200 },
+    { n: 2,  key: "biceps",       label: "Bíceps",        view: "F", cx: 55,  cy: 138 },
+    { n: 3,  key: "subescapular", label: "Subescapular",  view: "B", cx: 90,  cy: 142 },
+    { n: 4,  key: "axilar",       label: "Axilar média",  view: "F", cx: 81,  cy: 142 },
+    { n: 5,  key: "suprailíaca",  label: "Suprailíaca",   view: "F", cx: 79, cy: 200 },
     { n: 6,  key: "supraespinal", label: "Supraespinal",  view: "F", cx: 93, cy: 200 },
-    { n: 7,  key: "abdominal",    label: "Abdominal",     view: "F", cx: 91, cy: 190 },
-    { n: 8,  key: "coxa",         label: "Coxa anterior", view: "F", cx: 85,  cy: 250 },
+    { n: 7,  key: "abdominal",    label: "Abdominal",     view: "F", cx: 91, cy: 188 },
+    { n: 8,  key: "coxa",         label: "Coxa anterior", view: "F", cx: 85,  cy: 260 },
     { n: 9,  key: "panturrilha",  label: "Panturrilha",   view: "F", cx: 83,  cy: 345 },
   ];
 
@@ -56,13 +56,13 @@ const AnatomyFigure = ({ mode = "dobras", focusedKey = null, sexo = "F" }) => {
 
   // x1/x2 ajustados para mulher_frente.png (corpo mais estreito/centralizado)
   const CIRC_LINES_F = [
-    { n: "A", key: "torax",           label: "Tórax",           y: 133, x1: 64,  x2: 143 },
-    { n: "B", key: "braco",           label: "Braço relaxado",  y: 135, x1: 45,  x2: 70  },
-    { n: "C", key: "braco_contraido", label: "Braço contraído", y: 138, x1: 45,  x2: 70  },
-    { n: "D", key: "cintura",         label: "Cintura",         y: 175, x1: 67,  x2: 138 },
-    { n: "E", key: "abdomen",         label: "Abdômen",         y: 190, x1: 65,  x2: 143 },
-    { n: "F", key: "quadril",         label: "Quadril",         y: 233, x1: 57,  x2: 143 },
-    { n: "G", key: "coxa",            label: "Coxa",            y: 272, x1: 64,  x2: 102  },
+    { n: "A", key: "torax",           label: "Tórax",           y: 133, x1: 67,  x2: 143 },
+    { n: "B", key: "braco",           label: "Braço relaxado",  y: 135, x1: 48,  x2: 72  },
+    { n: "C", key: "braco_contraido", label: "Braço contraído", y: 138, x1: 48,  x2: 72  },
+    { n: "D", key: "cintura",         label: "Cintura",         y: 175, x1: 71,  x2: 138 },
+    { n: "E", key: "abdomen",         label: "Abdômen",         y: 190, x1: 69,  x2: 143 },
+    { n: "F", key: "quadril",         label: "Quadril",         y: 233, x1: 60,  x2: 146 },
+    { n: "G", key: "coxa",            label: "Coxa",            y: 272, x1: 64,  x2: 102 },
     { n: "H", key: "panturrilha",     label: "Panturrilha",     y: 349, x1: 68,  x2: 97  },
   ];
 
