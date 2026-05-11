@@ -649,6 +649,10 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, tex
   const rPrev = prevAv ? calcularTudo(prevAv.peso, prevAv.altura, patient.sexo, idade, prevAv.dobras, prevAv.circs) : null;
   const gPrev = prevAv ? getProtoG(prevAv) : null;
 
+  // Variação total (primeira → atual) para o dashboard
+  const rFirst = avs.length > 1 ? calcularTudo(firstAv.peso, firstAv.altura, patient.sexo, idade, firstAv.dobras, firstAv.circs) : null;
+  const gFirst = avs.length > 1 ? getProtoG(firstAv) : null;
+
   const isF = patient.sexo === 'F';
 
   // ── Sparkline miniatura ──────────────────────────────────────────
@@ -716,33 +720,34 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, tex
   };
 
   // ── Silhueta real com callouts ───────────────────────────────────
-  // Imagens PNG em Silhuetas/. No SVG 220×400 a imagem ocupa:
-  //   mulher_frente (625×1696, ratio 0.368) → w≈147 em height=400, x0≈36
-  //   homem_frente  (668×1696, ratio 0.394) → w≈157 em height=400, x0≈31
+  // ViewBox expandido: "-70 0 360 400" → labels têm 62px em cada lateral
+  // Corpo imagem: F x=[36..184] M x=[31..189], y=[0..400]
+  // cx/cy derivados das coordenadas de AnatomyFigure (200×440) via:
+  //   F: cx_SI = 36 + (cx_AF-19)*0.914  M: cx_SI = 31 + (cx_AF-13.5)*0.913
+  //   cy_SI = cy_AF * 0.909  (400/440)
   const SilhuetaImg = ({ av }) => {
     const imgSrc = isF ? 'Silhuetas/mulher_frente.png' : 'Silhuetas/homem_frente.png';
-    // cx/cy em coordenadas do SVG viewBox "0 0 220 400"
     const callouts = [
-      { key:'braco',        src:'circs',  label:'Braço',        unit:'cm', dec:1, cx: isF?63:58,  cy:96,  side:'left'  },
-      { key:'tricipital',   src:'dobras', label:'Tricipital',   unit:'mm', dec:1, cx: isF?156:162, cy:96,  side:'right' },
-      { key:'subescapular', src:'dobras', label:'Subescapular', unit:'mm', dec:1, cx: isF?62:60,  cy:128, side:'left'  },
-      { key:'cintura',      src:'circs',  label:'Cintura',      unit:'cm', dec:1, cx: isF?154:158, cy:180, side:'right' },
-      { key:'abdominal',    src:'dobras', label:'Abdominal',    unit:'mm', dec:1, cx: isF?152:156, cy:198, side:'right' },
-      { key:'quadril',      src:'circs',  label:'Quadril',      unit:'cm', dec:1, cx: isF?64:62,  cy:218, side:'left'  },
-      { key:'coxa',         src:'circs',  label:'Coxa',         unit:'cm', dec:1, cx: isF?150:154, cy:255, side:'right' },
+      { key:'braco',        src:'circs',  label:'Braço',        unit:'cm', dec:1, cx: isF?63:49,  cy:123, side:'left'  },
+      { key:'tricipital',   src:'dobras', label:'Tricipital',   unit:'mm', dec:1, cx: isF?157:171, cy:123, side:'right' },
+      { key:'subescapular', src:'dobras', label:'Subescapular', unit:'mm', dec:1, cx: isF?65:62,  cy:116, side:'left'  },
+      { key:'cintura',      src:'circs',  label:'Cintura',      unit:'cm', dec:1, cx: isF?145:145, cy: isF?159:145, side:'right' },
+      { key:'abdominal',    src:'dobras', label:'Abdominal',    unit:'mm', dec:1, cx: isF?145:145, cy: isF?171:162, side:'right' },
+      { key:'quadril',      src:'circs',  label:'Quadril',      unit:'cm', dec:1, cx: isF?74:68,  cy:212, side:'left'  },
+      { key:'coxa',         src:'circs',  label:'Coxa',         unit:'cm', dec:1, cx: isF?143:145, cy:247, side:'right' },
     ].filter(c => {
       const v = c.src === 'circs' ? av.circs?.[c.key] : av.dobras?.[c.key];
       return v != null;
     });
 
     return (
-      <svg viewBox="0 0 220 400" width="100%" style={{ maxWidth:220, display:'block' }}>
+      <svg viewBox="-70 0 360 400" width="100%" style={{ maxWidth:360, display:'block' }}>
         <image href={imgSrc} x={isF?36:31} y={0} width={isF?148:158} height={400}
-          preserveAspectRatio="xMidYMid meet" style={{ mixBlendMode:"multiply" }}/>
+          preserveAspectRatio="none" style={{ mixBlendMode:"multiply" }}/>
         {callouts.map(c => {
           const rawVal = c.src === 'circs' ? av.circs?.[c.key] : av.dobras?.[c.key];
           const valStr = n(rawVal, c.dec) + ' ' + c.unit;
-          const lineX2 = c.side === 'left' ? 6 : 214;
+          const lineX2 = c.side === 'left' ? -8 : 228;
           const anchor = c.side === 'left' ? 'end' : 'start';
           return (
             <g key={c.key}>
@@ -842,34 +847,35 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, tex
       {/* ══════════════════════════════════════════════════════════════
           PARTE 1 — Identificação
       ══════════════════════════════════════════════════════════════ */}
-      <div style={{ paddingBottom:20, borderBottom:'2px solid #1a1a1a', marginBottom:20 }}>
+      <div style={{ background:'#1a1a1a', borderRadius:10, padding:'22px 24px 20px', marginBottom:20 }}>
         {/* Nome e dados do paciente */}
-        <div style={{ marginBottom:14 }}>
-          <div style={{ fontSize:32, fontWeight:800, letterSpacing:'-0.03em', color:'#1a1a1a', lineHeight:1.1 }}>
+        <div style={{ marginBottom:16 }}>
+          <div style={{ fontSize:34, fontWeight:800, letterSpacing:'-0.03em', color:'#fff', lineHeight:1.1 }}>
             {patient.nome}
           </div>
-          <div style={{ fontSize:13, color:'#444', marginTop:7, fontWeight:500 }}>
+          <div style={{ fontSize:13, color:'#ccc', marginTop:8, fontWeight:500 }}>
             {isF ? 'Feminino' : 'Masculino'} · {idade} anos · {n(lastAv.altura > 3 ? lastAv.altura / 100 : lastAv.altura, 2)} m{patient.objetivo ? ` · ${patient.objetivo}` : ''}
           </div>
-          <div style={{ fontSize:10, color:'#999', marginTop:3 }}>
+          <div style={{ fontSize:10, color:'#888', marginTop:3 }}>
             {protoLabel}{avs.length > 1 ? ` · ${_fmtData(firstAv.data)} → ${_fmtData(lastAv.data)} (${avs.length} avaliações)` : ` · ${_fmtData(lastAv.data)}`}
           </div>
-          <div style={{ fontSize:9, color:'#bbb', marginTop:6 }}>
+          <div style={{ fontSize:9, color:'#555', marginTop:6 }}>
             Emitido em {new Date().toLocaleDateString("pt-BR", { day:"2-digit", month:"long", year:"numeric" })} · Avaliação Antropométrica por Vinicius Zapola
           </div>
         </div>
         {/* 4 cards abaixo do nome */}
         <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:8 }}>
           {[
-            { label:'% Gordura', value: gN != null ? n(gN) + '%' : '—', badge: gN != null ? classPctG(gN, patient.sexo) : null },
-            { label:'Peso', value: n(lastAv.peso) + ' kg', badge: null },
-            { label:'IMC', value: n(rN.imc), badge: rN.classIMC },
-            { label:'Massa Magra', value: mlgN != null ? n(mlgN) + ' kg' : '—', badge: null },
+            { label:'% Gordura', value: gN != null ? n(gN) + '%' : '—', badge: gN != null ? classPctG(gN, patient.sexo) : null, sub: null },
+            { label:'Peso', value: n(lastAv.peso) + ' kg', badge: null, sub: rN.faixaPesoIdeal ? `Ideal: ${n(rN.faixaPesoIdeal[0])}–${n(rN.faixaPesoIdeal[1])} kg` : null },
+            { label:'IMC', value: n(rN.imc), badge: rN.classIMC, sub: null },
+            { label:'Massa Magra', value: mlgN != null ? n(mlgN) + ' kg' : '—', badge: null, sub: null },
           ].map(cell => (
-            <div key={cell.label} style={{ background:'#f5f5f5', border:'1px solid #e0e0e0', borderRadius:8, padding:'10px 12px' }}>
-              <div style={{ fontSize:8, textTransform:'uppercase', letterSpacing:'0.08em', color:'#888', marginBottom:4 }}>{cell.label}</div>
-              <div style={{ fontSize:20, fontWeight:700, fontFamily:"'JetBrains Mono',monospace", color:'#1a1a1a', lineHeight:1.1 }}>{cell.value}</div>
-              {cell.badge && <div style={{ marginTop:4 }}><Badge tag={cell.badge.tag} small>{cell.badge.label}</Badge></div>}
+            <div key={cell.label} style={{ background:'rgba(255,255,255,0.08)', border:'1px solid rgba(255,255,255,0.12)', borderRadius:8, padding:'10px 12px' }}>
+              <div style={{ fontSize:8, textTransform:'uppercase', letterSpacing:'0.08em', color:'rgba(255,255,255,0.5)', marginBottom:4 }}>{cell.label}</div>
+              <div style={{ fontSize:20, fontWeight:700, fontFamily:"'JetBrains Mono',monospace", color:'#fff', lineHeight:1.1 }}>{cell.value}</div>
+              {cell.badge && <div style={{ marginTop:4 }}><BdgPR tag={cell.badge.tag} label={cell.badge.label}/></div>}
+              {cell.sub && <div style={{ marginTop:4, fontSize:8, color:'rgba(255,255,255,0.4)' }}>{cell.sub}</div>}
             </div>
           ))}
         </div>
@@ -885,21 +891,21 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, tex
           {
             nome: 'Peso', sub: 'kg',
             vals: sparkSeries(av => av.peso),
-            vN: lastAv.peso, vP: prevAv?.peso,
+            vN: lastAv.peso, vFirst: firstAv?.peso,
             badge: null, lowerIsBetter: true, dec: 1,
             display: n(lastAv.peso), unit: 'kg',
           },
           {
             nome: 'IMC', sub: 'kg/m²',
             vals: sparkSeries(av => calcIMC(av.peso, av.altura)),
-            vN: rN.imc, vP: rPrev?.imc,
+            vN: rN.imc, vFirst: rFirst?.imc,
             badge: rN.classIMC, lowerIsBetter: true, dec: 1,
             display: n(rN.imc), unit: 'kg/m²',
           },
           {
             nome: '% Gordura', sub: '%',
             vals: sparkSeries(av => getProtoG(av)),
-            vN: gN, vP: gPrev,
+            vN: gN, vFirst: gFirst,
             badge: gN != null ? classPctG(gN, patient.sexo) : null,
             lowerIsBetter: true, dec: 1,
             display: gN != null ? n(gN) : '—', unit: '%',
@@ -907,22 +913,22 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, tex
           {
             nome: 'Massa Muscular', sub: 'kg',
             vals: sparkSeries(av => calcularTudo(av.peso, av.altura, patient.sexo, idade, av.dobras, av.circs).mm),
-            vN: rN.mm, vP: rPrev?.mm,
+            vN: rN.mm, vFirst: rFirst?.mm,
             badge: null, lowerIsBetter: false, dec: 1,
             display: n(rN.mm), unit: 'kg',
           },
           {
             nome: 'Σ 8 Dobras', sub: 'mm (ISAK)',
             vals: sparkSeries(av => calcISAK8(av.dobras || {})),
-            vN: rN.isak8, vP: rPrev?.isak8,
+            vN: rN.isak8, vFirst: rFirst?.isak8,
             badge: null, lowerIsBetter: true, dec: 1,
             display: rN.isak8 != null ? n(rN.isak8) : '—', unit: 'mm',
           },
         ].map(card => {
-          const d = (card.vN != null && card.vP != null) ? card.vN - card.vP : null;
-          const good = d == null ? null : ((card.lowerIsBetter && d < 0) || (!card.lowerIsBetter && d > 0));
-          const deltaCol = d == null ? '#888' : (good ? '#16a34a' : '#dc2626');
-          const arrow = d == null ? '' : d > 0 ? '▲' : '▼';
+          const dTotal = (card.vN != null && card.vFirst != null && avs.length > 1) ? card.vN - card.vFirst : null;
+          const good = dTotal == null ? null : ((card.lowerIsBetter && dTotal < 0) || (!card.lowerIsBetter && dTotal > 0));
+          const deltaCol = dTotal == null ? '#888' : (good ? '#16a34a' : '#dc2626');
+          const arrow = dTotal == null ? '' : dTotal > 0 ? '▲' : '▼';
           return (
             <div key={card.nome} style={{ background:'#fafafa', border:'1px solid #ebebeb', borderRadius:6, padding:'10px 12px' }}>
               <div style={{ fontSize:8, textTransform:'uppercase', letterSpacing:'0.1em', color:'#888', fontWeight:700 }}>{card.nome}</div>
@@ -930,9 +936,9 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, tex
               <div style={{ fontSize:24, fontWeight:700, fontFamily:"'JetBrains Mono',monospace", color:'#1a1a1a', lineHeight:1 }}>
                 {card.display}<span style={{ fontSize:10, color:'#888', marginLeft:3 }}>{card.unit}</span>
               </div>
-              {d != null && (
+              {dTotal != null && (
                 <div style={{ marginTop:4, fontSize:10, color:deltaCol, fontWeight:600 }}>
-                  {arrow} {d > 0 ? '+' : ''}{n(d, card.dec)}{card.unit}
+                  {arrow} {dTotal > 0 ? '+' : ''}{n(dTotal, card.dec)}{card.unit} <span style={{ fontSize:8, color:'#aaa', fontWeight:400 }}>total</span>
                 </div>
               )}
               {card.badge && <div style={{ marginTop:4 }}><Badge tag={card.badge.tag} small>{card.badge.label}</Badge></div>}
@@ -984,7 +990,7 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, tex
           PARTE 4 — Indicadores de Saúde (Gauge horizontal)
       ══════════════════════════════════════════════════════════════ */}
       {(rN.rcq != null || rN.rce != null) && (
-        <div>
+        <div style={{ breakInside:'avoid', pageBreakInside:'avoid' }}>
           <SecHeader title="Indicadores de Saúde" right="Distribuição de gordura · Risco metabólico"/>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
 
@@ -1118,7 +1124,7 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, tex
                   <tr key={d.key} style={{ borderBottom:'1px solid #eee' }}>
                     <td style={{ ...tdStyle, textAlign:'left', fontWeight:600, whiteSpace:'nowrap', paddingLeft:7 }}>
                       <span style={{ display:'inline-flex', alignItems:'center', gap:5 }}>
-                        <span style={{ width:14, height:14, borderRadius:'50%', background:'rgba(180,83,9,0.85)', display:'inline-flex', alignItems:'center', justifyContent:'center', color:'white', fontFamily:'monospace', fontSize:7, fontWeight:700, flexShrink:0 }}>{d.n}</span>
+                        <span style={{ width:8, height:8, borderRadius:'50%', background:'rgba(180,83,9,0.85)', flexShrink:0, display:'inline-block' }}/>
                         {d.label}
                       </span>
                     </td>
@@ -1156,7 +1162,7 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, tex
                   <tr key={c.key} style={{ borderBottom:'1px solid #eee' }}>
                     <td style={{ ...tdStyle, textAlign:'left', fontWeight:600, whiteSpace:'nowrap', paddingLeft:7 }}>
                       <span style={{ display:'inline-flex', alignItems:'center', gap:5 }}>
-                        <span style={{ width:14, height:14, borderRadius:3, background:'#2563eb', display:'inline-flex', alignItems:'center', justifyContent:'center', color:'white', fontFamily:'monospace', fontSize:7, fontWeight:700, flexShrink:0 }}>{c.n}</span>
+                        <span style={{ width:8, height:8, borderRadius:'50%', background:'#2563eb', flexShrink:0, display:'inline-block' }}/>
                         {c.label}
                       </span>
                     </td>
