@@ -749,10 +749,10 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, tex
       // ── Dobras cutâneas — lado direito (laranja) ─────────────────
       // Subescapular omitida (costas)
       { key:'tricipital',  src:'dobras', label:'Tricipital',  unit:'mm', dec:1, cx: isF?151:162, cy:125, side:'right', type:'dobra' },
-      { key:'abdominal',   src:'dobras', label:'Abdominal',   unit:'mm', dec:1, cx: isF?118:128, cy:152, side:'right', type:'dobra' },
-      { key:'supraespinal',src:'dobras', label:'Supraespinal',unit:'mm', dec:1, cx: isF?116:130, cy:178, side:'right', type:'dobra' },
-      { key:'suprailíaca', src:'dobras', label:'Suprailíaca', unit:'mm', dec:1, cx: isF?129:145, cy:204, side:'right', type:'dobra' },
-      { key:'panturrilha', src:'dobras', label:'Panturrilha', unit:'mm', dec:1, cx: isF?126:126, cy:332, side:'right', type:'dobra' },
+      { key:'abdominal',   src:'dobras', label:'Abdominal',   unit:'mm', dec:1, cx: isF?110:120, cy:165, side:'right', type:'dobra' },
+      { key:'supraespinal',src:'dobras', label:'Supraespinal',unit:'mm', dec:1, cx: isF?104:118, cy:170, side:'right', type:'dobra' },
+      { key:'suprailíaca', src:'dobras', label:'Suprailíaca', unit:'mm', dec:1, cx: isF?116:130, cy:180, side:'right', type:'dobra' },
+      { key:'panturrilha', src:'dobras', label:'Panturrilha', unit:'mm', dec:1, cx: isF?126:126, cy:317, side:'right', type:'dobra' },
     ].filter(c => {
       const v = c.src === 'circs' ? av.circs?.[c.key] : av.dobras?.[c.key];
       return v != null;
