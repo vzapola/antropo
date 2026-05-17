@@ -733,16 +733,14 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, tex
 
     const callouts = [
       // ── Circunferências — lado esquerdo (azul) ──────────────────
-      { key:'braco',       src:'circs',  label:'Braço',       unit:'cm', dec:1, cx: isF?63:49,  cy:122, side:'left',  type:'circ'  },
-      { key:'cintura',     src:'circs',  label:'Cintura',     unit:'cm', dec:1, cx: isF?72:67,  cy:162, side:'left',  type:'circ'  },
-      { key:'quadril',     src:'circs',  label:'Quadril',     unit:'cm', dec:1, cx: isF?74:68,  cy:215, side:'left',  type:'circ'  },
-      { key:'coxa',        src:'circs',  label:'Coxa',        unit:'cm', dec:1, cx: isF?74:68,  cy:252, side:'left',  type:'circ'  },
+      { key:'braco',      src:'circs',  label:'Braço',      unit:'cm', dec:1, cx: isF?63:49,  cy:122, side:'left',  type:'circ'  },
+      { key:'cintura',    src:'circs',  label:'Cintura',    unit:'cm', dec:1, cx: isF?72:67,  cy:148, side:'left',  type:'circ'  },
+      { key:'quadril',    src:'circs',  label:'Quadril',    unit:'cm', dec:1, cx: isF?74:68,  cy:215, side:'left',  type:'circ'  },
+      { key:'coxa',       src:'circs',  label:'Coxa',       unit:'cm', dec:1, cx: isF?74:68,  cy:252, side:'left',  type:'circ'  },
       // ── Dobras cutâneas — lado direito (laranja) ─────────────────
-      // Subescapular omitida: medida das costas
-      { key:'tricipital',  src:'dobras', label:'Tricipital',  unit:'mm', dec:1, cx: isF?150:158, cy:122, side:'right', type:'dobra' },
-      { key:'suprailíaca', src:'dobras', label:'Suprailíaca', unit:'mm', dec:1, cx: isF?136:140, cy:182, side:'right', type:'dobra' },
-      { key:'supraespinal',src:'dobras', label:'Supraespinal',unit:'mm', dec:1, cx: isF?136:140, cy:206, side:'right', type:'dobra' },
-      { key:'abdominal',   src:'dobras', label:'Abdominal',   unit:'mm', dec:1, cx: isF?136:140, cy:230, side:'right', type:'dobra' },
+      // Omitidas: subescapular, suprailíaca, supraespinal (medidas laterais/costas)
+      { key:'tricipital', src:'dobras', label:'Tricipital', unit:'mm', dec:1, cx: isF?150:158, cy:122, side:'right', type:'dobra' },
+      { key:'abdominal',  src:'dobras', label:'Abdominal',  unit:'mm', dec:1, cx: isF?136:140, cy:192, side:'right', type:'dobra' },
     ].filter(c => {
       const v = c.src === 'circs' ? av.circs?.[c.key] : av.dobras?.[c.key];
       return v != null;
