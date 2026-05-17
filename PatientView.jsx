@@ -749,9 +749,9 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, tex
       // ── Dobras cutâneas — lado direito (laranja) ─────────────────
       // Subescapular omitida (costas)
       { key:'tricipital',  src:'dobras', label:'Tricipital',  unit:'mm', dec:1, cx: isF?151:162, cy:125, side:'right', type:'dobra' },
-      { key:'abdominal',   src:'dobras', label:'Abdominal',   unit:'mm', dec:1, cx: isF?110:120, cy:165, side:'right', type:'dobra' },
-      { key:'supraespinal',src:'dobras', label:'Supraespinal',unit:'mm', dec:1, cx: isF?104:118, cy:170, side:'right', type:'dobra' },
-      { key:'suprailíaca', src:'dobras', label:'Suprailíaca', unit:'mm', dec:1, cx: isF?116:130, cy:180, side:'right', type:'dobra' },
+      { key:'abdominal',   src:'dobras', label:'Abdominal',   unit:'mm', dec:1, cx: isF?110:120, cy:165, lcy:148, side:'right', type:'dobra' },
+      { key:'supraespinal',src:'dobras', label:'Supraespinal',unit:'mm', dec:1, cx: isF?104:118, cy:172, lcy:172, side:'right', type:'dobra' },
+      { key:'suprailíaca', src:'dobras', label:'Suprailíaca', unit:'mm', dec:1, cx: isF?116:130, cy:180, lcy:196, side:'right', type:'dobra' },
       { key:'panturrilha', src:'dobras', label:'Panturrilha', unit:'mm', dec:1, cx: isF?126:126, cy:317, side:'right', type:'dobra' },
     ].filter(c => {
       const v = c.src === 'circs' ? av.circs?.[c.key] : av.dobras?.[c.key];
@@ -781,14 +781,16 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, tex
             const anchor = c.side === 'left' ? 'end' : 'start';
             const col = c.type === 'dobra' ? DOBRA_COLOR : CIRC_COLOR;
             const valCol = c.type === 'dobra' ? 'rgba(120,55,6,1)' : '#1e3a8a';
+            // lcy: posição do label (pode ser diferente do dot para evitar sobreposição)
+            const lcy = c.lcy ?? c.cy;
             return (
               <g key={c.key}>
-                <line x1={c.cx} y1={c.cy} x2={lineX2} y2={c.cy}
+                <line x1={c.cx} y1={c.cy} x2={lineX2} y2={lcy}
                   stroke={col} strokeWidth={0.6} strokeDasharray="3,2" strokeOpacity={0.5}/>
                 <circle cx={c.cx} cy={c.cy} r={3} fill={col}/>
-                <text x={lineX2} y={c.cy - 5} textAnchor={anchor} fontSize={9}
+                <text x={lineX2} y={lcy - 5} textAnchor={anchor} fontSize={9}
                   fill={col} fontFamily="'DM Sans',sans-serif" fontWeight="600">{c.label}</text>
-                <text x={lineX2} y={c.cy + 9} textAnchor={anchor} fontSize={9}
+                <text x={lineX2} y={lcy + 9} textAnchor={anchor} fontSize={9}
                   fill={valCol} fontFamily="'JetBrains Mono',monospace" fontWeight="700">{valStr}</text>
               </g>
             );
