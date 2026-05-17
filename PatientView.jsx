@@ -746,14 +746,16 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, tex
       { key:'quadril',     src:'circs',  label:'Quadril',     unit:'cm', dec:1, cx: isF?80:68,  cy:212, side:'left',  type:'circ'  },
       { key:'coxa',        src:'circs',  label:'Coxa',        unit:'cm', dec:1, cx: isF?83:75,  cy:247, side:'left',  type:'circ'  },
       { key:'panturrilha', src:'circs',  label:'Panturrilha', unit:'cm', dec:1, cx: isF?91:77,  cy:317, side:'left',  type:'circ'  },
-      // ── Dobras cutâneas — dots no lado ESQUERDO do corpo, labels à direita ──
+      // ── Dobras cutâneas — lado DIREITO do corpo, labels à direita ───────────
       // Subescapular omitida (costas)
-      // cx: lado esquerdo (espelho anatômico), side:'right' → label/linha vão para a direita
-      { key:'tricipital',  src:'dobras', label:'Tricipital',  unit:'mm', dec:1, cx: isF?60:55,  cy:125, side:'right', type:'dobra' },
-      { key:'abdominal',   src:'dobras', label:'Abdominal',   unit:'mm', dec:1, cx: isF?96:100, cy:165, lcy:148, side:'right', type:'dobra' },
-      { key:'supraespinal',src:'dobras', label:'Supraespinal',unit:'mm', dec:1, cx: isF?95:100, cy:172, lcy:172, side:'right', type:'dobra' },
-      { key:'suprailíaca', src:'dobras', label:'Suprailíaca', unit:'mm', dec:1, cx: isF?92:90,  cy:180, lcy:196, side:'right', type:'dobra' },
-      { key:'panturrilha', src:'dobras', label:'Panturrilha', unit:'mm', dec:1, cx: isF?88:88,  cy:317, side:'right', type:'dobra' },
+      // cx espelho: 220 − cx_esquerdo_calibrado
+      // F: braço(67)→153, cintura(91)→129, panturrilha(91)→129
+      // M: braço(49)→171→ajustado165, cintura(75)→145→ajustado128
+      { key:'tricipital',  src:'dobras', label:'Tricipital',  unit:'mm', dec:1, cx: isF?153:165, cy:125, side:'right', type:'dobra' },
+      { key:'abdominal',   src:'dobras', label:'Abdominal',   unit:'mm', dec:1, cx: isF?130:145, cy:170, lcy:148, side:'right', type:'dobra' },
+      { key:'supraespinal',src:'dobras', label:'Supraespinal',unit:'mm', dec:1, cx: isF?136:143, cy:178, lcy:172, side:'right', type:'dobra' },
+      { key:'suprailíaca', src:'dobras', label:'Suprailíaca', unit:'mm', dec:1, cx: isF?147:147, cy:180, lcy:196, side:'right', type:'dobra' },
+      { key:'panturrilha', src:'dobras', label:'Panturrilha', unit:'mm', dec:1, cx: isF?124:128, cy:317, side:'right', type:'dobra' },
     ].filter(c => {
       const v = c.src === 'circs' ? av.circs?.[c.key] : av.dobras?.[c.key];
       return v != null;
