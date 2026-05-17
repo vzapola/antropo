@@ -740,19 +740,19 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, tex
     // cy ajustados em ±5px para separação mínima de 12px entre labels (9pt)
     const callouts = [
       // ── Circunferências — lado esquerdo (azul) ──────────────────
-      { key:'torax',       src:'circs',  label:'Tórax',       unit:'cm', dec:1, cx: isF?80:72,  cy:100, side:'left',  type:'circ'  },
-      { key:'braco',       src:'circs',  label:'Braço',       unit:'cm', dec:1, cx: isF?63:49,  cy:125, side:'left',  type:'circ'  },
-      { key:'cintura',     src:'circs',  label:'Cintura',     unit:'cm', dec:1, cx: isF?84:75,  cy:152, side:'left',  type:'circ'  },
-      { key:'quadril',     src:'circs',  label:'Quadril',     unit:'cm', dec:1, cx: isF?74:68,  cy:212, side:'left',  type:'circ'  },
-      { key:'coxa',        src:'circs',  label:'Coxa',        unit:'cm', dec:1, cx: isF?77:75,  cy:247, side:'left',  type:'circ'  },
-      { key:'panturrilha', src:'circs',  label:'Panturrilha', unit:'cm', dec:1, cx: isF?81:77,  cy:317, side:'left',  type:'circ'  },
+      { key:'torax',       src:'circs',  label:'Tórax',       unit:'cm', dec:1, cx: isF?87:72,  cy:100, side:'left',  type:'circ'  },
+      { key:'braco',       src:'circs',  label:'Braço',       unit:'cm', dec:1, cx: isF?67:49,  cy:125, side:'left',  type:'circ'  },
+      { key:'cintura',     src:'circs',  label:'Cintura',     unit:'cm', dec:1, cx: isF?91:75,  cy:152, side:'left',  type:'circ'  },
+      { key:'quadril',     src:'circs',  label:'Quadril',     unit:'cm', dec:1, cx: isF?80:68,  cy:212, side:'left',  type:'circ'  },
+      { key:'coxa',        src:'circs',  label:'Coxa',        unit:'cm', dec:1, cx: isF?83:75,  cy:247, side:'left',  type:'circ'  },
+      { key:'panturrilha', src:'circs',  label:'Panturrilha', unit:'cm', dec:1, cx: isF?91:77,  cy:317, side:'left',  type:'circ'  },
       // ── Dobras cutâneas — lado direito (laranja) ─────────────────
       // Subescapular omitida (costas)
-      { key:'tricipital',  src:'dobras', label:'Tricipital',  unit:'mm', dec:1, cx: isF?151:162, cy:125, side:'right', type:'dobra' },
-      { key:'abdominal',   src:'dobras', label:'Abdominal',   unit:'mm', dec:1, cx: isF?110:120, cy:165, lcy:148, side:'right', type:'dobra' },
-      { key:'supraespinal',src:'dobras', label:'Supraespinal',unit:'mm', dec:1, cx: isF?104:118, cy:172, lcy:172, side:'right', type:'dobra' },
-      { key:'suprailíaca', src:'dobras', label:'Suprailíaca', unit:'mm', dec:1, cx: isF?116:130, cy:180, lcy:196, side:'right', type:'dobra' },
-      { key:'panturrilha', src:'dobras', label:'Panturrilha', unit:'mm', dec:1, cx: isF?126:126, cy:317, side:'right', type:'dobra' },
+      { key:'tricipital',  src:'dobras', label:'Tricipital',  unit:'mm', dec:1, cx: isF?147:162, cy:125, side:'right', type:'dobra' },
+      { key:'abdominal',   src:'dobras', label:'Abdominal',   unit:'mm', dec:1, cx: isF?108:120, cy:165, lcy:148, side:'right', type:'dobra' },
+      { key:'supraespinal',src:'dobras', label:'Supraespinal',unit:'mm', dec:1, cx: isF?106:118, cy:172, lcy:172, side:'right', type:'dobra' },
+      { key:'suprailíaca', src:'dobras', label:'Suprailíaca', unit:'mm', dec:1, cx: isF?111:130, cy:180, lcy:196, side:'right', type:'dobra' },
+      { key:'panturrilha', src:'dobras', label:'Panturrilha', unit:'mm', dec:1, cx: isF?112:126, cy:317, side:'right', type:'dobra' },
     ].filter(c => {
       const v = c.src === 'circs' ? av.circs?.[c.key] : av.dobras?.[c.key];
       return v != null;
