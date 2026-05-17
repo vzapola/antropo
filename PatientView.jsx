@@ -720,46 +720,71 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, tex
   };
 
   // ── Silhueta real com callouts ───────────────────────────────────
-  // ViewBox expandido: "-70 0 360 400" → labels têm 62px em cada lateral
-  // Corpo imagem: F x=[36..184] M x=[31..189], y=[0..400]
-  // cx/cy derivados das coordenadas de AnatomyFigure (200×440) via:
-  //   F: cx_SI = 36 + (cx_AF-19)*0.914  M: cx_SI = 31 + (cx_AF-13.5)*0.913
-  //   cy_SI = cy_AF * 0.909  (400/440)
+  // ViewBox: "-70 0 360 400" → 62px de margem para labels em cada lateral
+  // Organização: CIRCUNFERÊNCIAS (azul) no lado ESQUERDO
+  //              DOBRAS (laranja) no lado DIREITO
+  // cx M corrigidos: braço direito ≤158 (era 171, ficava fora do corpo)
+  //                  torso direito ≤140 (era 145)
+  const CIRC_COLOR  = '#2563eb';
+  const DOBRA_COLOR = 'rgba(180,83,9,0.9)';
+
   const SilhuetaImg = ({ av }) => {
     const imgSrc = isF ? 'Silhuetas/mulher_frente.png' : 'Silhuetas/homem_frente.png';
-    // Subescapular omitida: medida das costas, não representável na silhueta frontal
-    // Espaçamento vertical mínimo de 22px entre callouts do mesmo lado (fonte 9pt)
+
     const callouts = [
-      { key:'braco',      src:'circs',  label:'Braço',      unit:'cm', dec:1, cx: isF?63:49,  cy:122, side:'left'  },
-      { key:'tricipital', src:'dobras', label:'Tricipital', unit:'mm', dec:1, cx: isF?157:171, cy:122, side:'right' },
-      { key:'cintura',    src:'circs',  label:'Cintura',    unit:'cm', dec:1, cx: isF?145:145, cy: isF?158:144, side:'right' },
-      { key:'abdominal',  src:'dobras', label:'Abdominal',  unit:'mm', dec:1, cx: isF?145:145, cy: isF?182:168, side:'right' },
-      { key:'quadril',    src:'circs',  label:'Quadril',    unit:'cm', dec:1, cx: isF?74:68,  cy:215, side:'left'  },
-      { key:'coxa',       src:'circs',  label:'Coxa',       unit:'cm', dec:1, cx: isF?143:145, cy:250, side:'right' },
+      // ── Circunferências — lado esquerdo (azul) ──────────────────
+      { key:'braco',       src:'circs',  label:'Braço',       unit:'cm', dec:1, cx: isF?63:49,  cy:122, side:'left',  type:'circ'  },
+      { key:'cintura',     src:'circs',  label:'Cintura',     unit:'cm', dec:1, cx: isF?72:67,  cy:162, side:'left',  type:'circ'  },
+      { key:'quadril',     src:'circs',  label:'Quadril',     unit:'cm', dec:1, cx: isF?74:68,  cy:215, side:'left',  type:'circ'  },
+      { key:'coxa',        src:'circs',  label:'Coxa',        unit:'cm', dec:1, cx: isF?74:68,  cy:252, side:'left',  type:'circ'  },
+      // ── Dobras cutâneas — lado direito (laranja) ─────────────────
+      // Subescapular omitida: medida das costas
+      { key:'tricipital',  src:'dobras', label:'Tricipital',  unit:'mm', dec:1, cx: isF?150:158, cy:122, side:'right', type:'dobra' },
+      { key:'suprailíaca', src:'dobras', label:'Suprailíaca', unit:'mm', dec:1, cx: isF?136:140, cy:182, side:'right', type:'dobra' },
+      { key:'supraespinal',src:'dobras', label:'Supraespinal',unit:'mm', dec:1, cx: isF?136:140, cy:206, side:'right', type:'dobra' },
+      { key:'abdominal',   src:'dobras', label:'Abdominal',   unit:'mm', dec:1, cx: isF?136:140, cy:230, side:'right', type:'dobra' },
     ].filter(c => {
       const v = c.src === 'circs' ? av.circs?.[c.key] : av.dobras?.[c.key];
       return v != null;
     });
 
     return (
-      <svg viewBox="-70 0 360 400" width="100%" style={{ maxWidth:360, display:'block' }}>
-        <image href={imgSrc} x={isF?36:31} y={0} width={isF?148:158} height={400}
-          preserveAspectRatio="none" style={{ mixBlendMode:"multiply" }}/>
-        {callouts.map(c => {
-          const rawVal = c.src === 'circs' ? av.circs?.[c.key] : av.dobras?.[c.key];
-          const valStr = n(rawVal, c.dec) + ' ' + c.unit;
-          const lineX2 = c.side === 'left' ? -8 : 228;
-          const anchor = c.side === 'left' ? 'end' : 'start';
-          return (
-            <g key={c.key}>
-              <line x1={c.cx} y1={c.cy} x2={lineX2} y2={c.cy} stroke="#bbb" strokeWidth={0.7} strokeDasharray="2,2"/>
-              <circle cx={c.cx} cy={c.cy} r={3} fill="#1a1a1a"/>
-              <text x={lineX2} y={c.cy - 5} textAnchor={anchor} fontSize={9} fill="#555" fontFamily="'DM Sans',sans-serif">{c.label}</text>
-              <text x={lineX2} y={c.cy + 9} textAnchor={anchor} fontSize={9} fill="#1a1a1a" fontFamily="'JetBrains Mono',monospace" fontWeight="700">{valStr}</text>
-            </g>
-          );
-        })}
-      </svg>
+      <div>
+        {/* Legenda de cores */}
+        <div style={{ display:'flex', gap:16, justifyContent:'center', marginBottom:6, fontSize:8.5, fontWeight:600 }}>
+          <span style={{ display:'flex', alignItems:'center', gap:4 }}>
+            <span style={{ width:8, height:8, borderRadius:'50%', background:CIRC_COLOR, display:'inline-block' }}/>
+            <span style={{ color:CIRC_COLOR }}>Circunferência (cm)</span>
+          </span>
+          <span style={{ display:'flex', alignItems:'center', gap:4 }}>
+            <span style={{ width:8, height:8, borderRadius:'50%', background:DOBRA_COLOR, display:'inline-block' }}/>
+            <span style={{ color:'rgba(180,83,9,0.9)' }}>Dobra cutânea (mm)</span>
+          </span>
+        </div>
+        <svg viewBox="-70 0 360 400" width="100%" style={{ maxWidth:360, display:'block' }}>
+          <image href={imgSrc} x={isF?36:31} y={0} width={isF?148:158} height={400}
+            preserveAspectRatio="none" style={{ mixBlendMode:"multiply" }}/>
+          {callouts.map(c => {
+            const rawVal = c.src === 'circs' ? av.circs?.[c.key] : av.dobras?.[c.key];
+            const valStr = n(rawVal, c.dec) + ' ' + c.unit;
+            const lineX2 = c.side === 'left' ? -8 : 228;
+            const anchor = c.side === 'left' ? 'end' : 'start';
+            const col = c.type === 'dobra' ? DOBRA_COLOR : CIRC_COLOR;
+            const valCol = c.type === 'dobra' ? 'rgba(120,55,6,1)' : '#1e3a8a';
+            return (
+              <g key={c.key}>
+                <line x1={c.cx} y1={c.cy} x2={lineX2} y2={c.cy}
+                  stroke={col} strokeWidth={0.6} strokeDasharray="3,2" strokeOpacity={0.5}/>
+                <circle cx={c.cx} cy={c.cy} r={3} fill={col}/>
+                <text x={lineX2} y={c.cy - 5} textAnchor={anchor} fontSize={9}
+                  fill={col} fontFamily="'DM Sans',sans-serif" fontWeight="600">{c.label}</text>
+                <text x={lineX2} y={c.cy + 9} textAnchor={anchor} fontSize={9}
+                  fill={valCol} fontFamily="'JetBrains Mono',monospace" fontWeight="700">{valStr}</text>
+              </g>
+            );
+          })}
+        </svg>
+      </div>
     );
   };
 
