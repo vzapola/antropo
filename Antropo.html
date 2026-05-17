@@ -345,6 +345,7 @@ const App = () => {
         {/* Painel direito — conteúdo do paciente */}
         {selected
           ? <PatientView
+              key={selected.id}
               patient={selected}
               avaliacoes={avaliacoes}
               onSave={handleSaveAv}
