@@ -266,10 +266,6 @@ const AvaliacaoFormTab = ({ patient, avaliacao: initialAv, isNew, onSave, protoR
               <div />
               <Field label="Peso" value={form.peso} onChange={setF("peso")} type="number" unit="kg" placeholder="ex: 72,0" />
               <Field label="Altura" value={form.altura} onChange={setF("altura")} type="number" unit="cm" placeholder="ex: 165" />
-              <div style={{ gridColumn: "1 / -1" }}>
-                <Select label="Nível de atividade física" value={form.atividade || "moderado"} onChange={setF("atividade")}
-                  options={Object.entries(PAL_FATORES).map(([k, v]) => ({ value: k, label: `${v.label} · PAL ${fmtN(v.fator, 2)} — ${v.desc}` }))} />
-              </div>
             </div>
             {res && (
               <div style={{ background: "var(--accent-light)", border: "1px solid var(--border)", borderRadius: 8, padding: "14px 18px", display: "flex", gap: 28, alignItems: "center", flexWrap: "wrap" }}>
@@ -548,8 +544,9 @@ const AvaliacaoFormTab = ({ patient, avaliacao: initialAv, isNew, onSave, protoR
             {!res ? (
               <Empty icon="🔥" title="Preencha peso e altura" sub="A TMB e o GET aparecem ao vivo." action={<Btn onClick={() => setSubTab(0)}>Dados gerais</Btn>} />
             ) : (() => {
-              const pal = PAL_FATORES[form.atividade] || PAL_FATORES.moderado;
-              const palAssumido = !form.atividade;
+              const pal = resolvePAL(form.atividade);
+              const atividadeCustom = pal.custom;
+              const palAssumido = form.atividade == null;
               const baseOk = res[tmbBase] != null ? tmbBase : "mifflin";
               const tmbVal = res[baseOk];
               const get = calcGET(tmbVal, pal.fator);
@@ -595,14 +592,15 @@ const AvaliacaoFormTab = ({ patient, avaliacao: initialAv, isNew, onSave, protoR
                     </div>
                   </div>
 
-                  {/* Tabela de fatores PAL */}
+                  {/* Nível de atividade (PAL) — editável, salvo por avaliação */}
                   <div>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: "var(--muted)", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 8 }}>Fatores de atividade (PAL) · FAO/OMS/UNU (2001)</div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: "var(--muted)", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 8 }}>Nível de atividade física (PAL) · FAO/OMS/UNU (2001)</div>
                     <div style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
                       {Object.entries(PAL_FATORES).map(([k, v], i) => {
-                        const sel = (form.atividade || "moderado") === k;
+                        const sel = !atividadeCustom && (form.atividade ?? "moderado") === k;
                         return (
-                          <div key={k} style={{ display: "flex", alignItems: "center", gap: 12, padding: "9px 14px", borderTop: i > 0 ? "1px solid var(--border)" : "none", background: sel ? "var(--accent-light)" : "transparent" }}>
+                          <div key={k} onClick={() => setF("atividade")(k)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "9px 14px", borderTop: i > 0 ? "1px solid var(--border)" : "none", background: sel ? "var(--accent-light)" : "transparent", cursor: "pointer" }}>
+                            <input type="radio" name="palSel" checked={sel} onChange={() => setF("atividade")(k)} style={{ accentColor: "var(--accent)", cursor: "pointer" }} />
                             <div style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, width: 44 }}>{fmtN(v.fator, 2)}</div>
                             <div style={{ flex: 1 }}>
                               <div style={{ fontSize: 13, fontWeight: sel ? 700 : 600 }}>{v.label}</div>
@@ -612,9 +610,24 @@ const AvaliacaoFormTab = ({ patient, avaliacao: initialAv, isNew, onSave, protoR
                           </div>
                         );
                       })}
+                      {/* Personalizado — edição manual do PAL */}
+                      <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "9px 14px", borderTop: "1px solid var(--border)", background: atividadeCustom ? "var(--accent-light)" : "transparent" }}>
+                        <input type="radio" name="palSel" checked={atividadeCustom} onChange={() => setF("atividade")(Number(pal.fator.toFixed(2)))} style={{ accentColor: "var(--accent)", cursor: "pointer" }} />
+                        <input type="text" inputMode="decimal"
+                          value={atividadeCustom ? String(form.atividade).replace(".", ",") : ""}
+                          placeholder="1,63"
+                          onFocus={() => { if (!atividadeCustom) setF("atividade")(Number(pal.fator.toFixed(2))); }}
+                          onChange={(e) => { const raw = e.target.value.replace(",", "."); const nn = parseFloat(raw); setF("atividade")(e.target.value.trim() === "" ? "moderado" : (isNaN(nn) ? form.atividade : nn)); }}
+                          style={{ width: 52, fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, textAlign: "center", padding: "4px 4px", border: "1px solid var(--border)", borderRadius: 6, background: "var(--surface)", color: "var(--text)" }} />
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 13, fontWeight: atividadeCustom ? 700 : 600 }}>Personalizado</div>
+                          <div style={{ fontSize: 11, color: "var(--muted)" }}>Digite o PAL na mão (ex.: 1,63)</div>
+                        </div>
+                        <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 13, color: "var(--muted)" }}>{atividadeCustom ? `${fmtN(tmbVal * pal.fator, 0)} kcal` : "—"}</div>
+                      </div>
                     </div>
                     <div style={{ fontSize: 11, color: "var(--muted)", lineHeight: 1.5, marginTop: 8 }}>
-                      O nível de atividade é definido por avaliação (aba Medidas gerais) e fica salvo no histórico. GET estimado — não substitui calorimetria indireta nem avaliação individualizada.
+                      O nível de atividade fica salvo por avaliação. Clique num nível ou digite um PAL personalizado. GET estimado — não substitui calorimetria indireta nem avaliação individualizada.
                     </div>
                   </div>
                 </div>
@@ -712,8 +725,19 @@ const DEFAULT_REPORT_TEXTS = {
 };
 
 // ---- Relatório impresso orientado ao paciente ----
-const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, texts = DEFAULT_REPORT_TEXTS, editMode = false, onTextChange = () => {}, aiSummary = '' }) => {
+// Seções do relatório que podem ser ligadas/desligadas na exportação do PDF
+const REPORT_SECTIONS = [
+  { key: 'dashboard',     label: 'Dashboard de evolução' },
+  { key: 'mapeamento',    label: 'Mapeamento corporal' },
+  { key: 'indicadores',   label: 'Indicadores de saúde (RCQ/RCE)' },
+  { key: 'historico',     label: 'Histórico de avaliações' },
+  { key: 'interpretacao', label: 'Guia de interpretação' },
+  { key: 'medidasBrutas', label: 'Medidas brutas + Σ8 dobras' },
+];
+
+const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, texts = DEFAULT_REPORT_TEXTS, editMode = false, onTextChange = () => {}, aiSummary = '', sections = {} }) => {
   if (!avs.length) return null;
+  const showSec = (k) => sections[k] !== false;
 
   // ── Helper de formatação local ──────────────────────────────────
   const n = (v, d=1) => v != null && !isNaN(v) ? Number(v).toFixed(d).replace('.',',') : '—';
@@ -987,7 +1011,7 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, tex
         <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:8 }}>
           {[
             { label:'% Gordura', value: gN != null ? n(gN) + '%' : '—', badge: gN != null ? classPctG(gN, patient.sexo) : null, sub: null },
-            { label:'Peso', value: n(lastAv.peso) + ' kg', badge: null, sub: rN.faixaPesoIdeal ? `Ideal: ${n(rN.faixaPesoIdeal[0])}–${n(rN.faixaPesoIdeal[1])} kg` : null },
+            { label:'Peso', value: n(lastAv.peso) + ' kg', badge: null, sub: rN.faixaPesoIdeal ? `Eutrófico: ${n(rN.faixaPesoIdeal[0])}–${n(rN.faixaPesoIdeal[1])} kg` : null },
             { label:'IMC', value: n(rN.imc), badge: rN.classIMC, sub: null },
             { label:'Massa Magra', value: mlgN != null ? n(mlgN) + ' kg' : '—', badge: null, sub: null },
           ].map(cell => (
@@ -1004,6 +1028,7 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, tex
       {/* ══════════════════════════════════════════════════════════════
           PARTE 2 — Dashboard de Evolução
       ══════════════════════════════════════════════════════════════ */}
+      {showSec('dashboard') && (<React.Fragment>
       <SecHeader title="Dashboard de Evolução" right={avs.length > 1 ? `${avs.length} avaliações` : null}/>
 
       <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:8 }}>
@@ -1069,10 +1094,12 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, tex
           );
         })}
       </div>
+      </React.Fragment>)}
 
       {/* ══════════════════════════════════════════════════════════════
           PARTE 3 — Mapeamento Corporal + Resumo Técnico
       ══════════════════════════════════════════════════════════════ */}
+      {showSec('mapeamento') && (
       <div>
         <SecHeader title="Mapeamento Corporal" right="Medidas da última avaliação"/>
         <div style={{ display:'grid', gridTemplateColumns: aiSummary ? '1fr 1fr' : '1fr', gap:20 }}>
@@ -1105,11 +1132,12 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, tex
           )}
         </div>
       </div>
+      )}
 
       {/* ══════════════════════════════════════════════════════════════
           PARTE 4 — Indicadores de Saúde (Gauge horizontal)
       ══════════════════════════════════════════════════════════════ */}
-      {(rN.rcq != null || rN.rce != null) && (
+      {showSec('indicadores') && (rN.rcq != null || rN.rce != null) && (
         <div style={{ breakInside:'avoid', pageBreakInside:'avoid' }}>
           <SecHeader title="Indicadores de Saúde" right="Distribuição de gordura · Risco metabólico"/>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
@@ -1160,6 +1188,7 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, tex
       {/* ══════════════════════════════════════════════════════════════
           PARTE 5 — Histórico de Avaliações
       ══════════════════════════════════════════════════════════════ */}
+      {showSec('historico') && (
       <div style={{ breakInside:'avoid', marginTop:8 }}>
         <SecHeader title="Histórico de Avaliações" right={`Protocolo: ${protoLabel}`}/>
         <table style={{ width:'100%', borderCollapse:'collapse', fontSize:10 }}>
@@ -1200,10 +1229,12 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, tex
           </tbody>
         </table>
       </div>
+      )}
 
       {/* ══════════════════════════════════════════════════════════════
           PARTE 5B — Interpretação dos Indicadores
       ══════════════════════════════════════════════════════════════ */}
+      {showSec('interpretacao') && (
       <div style={{ marginTop:8 }}>
         <SecHeader title="O que cada indicador significa" right="Guia de interpretação para o paciente"/>
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10 }}>
@@ -1221,11 +1252,12 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, tex
             explain={texts.gordKg} v0={gFirst != null ? firstAv.peso*gFirst/100 : null} vN={mgN} vUnit="kg" vDec={1} lowerIsBetter={true} isSingle={avs.length < 2}/>
         </div>
       </div>
+      )}
 
       {/* ══════════════════════════════════════════════════════════════
           PARTE 6 — Medidas Brutas com Var.Total e Sparkline
       ══════════════════════════════════════════════════════════════ */}
-      {(dobrasRows.length > 0 || circsRows.length > 0) && (() => {
+      {showSec('medidasBrutas') && (dobrasRows.length > 0 || circsRows.length > 0) && (() => {
         const thStyle = {
           padding:'4px 7px', textAlign:'center', fontSize:8, fontWeight:700,
           color:'#fff', textTransform:'uppercase', letterSpacing:'0.06em',
@@ -1294,6 +1326,40 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, tex
                   </tr>
                 ))}
 
+                {/* Σ8 ISAK — subtotal das dobras cutâneas */}
+                {dobrasRows.length > 0 && (() => {
+                  const isakVals = avs.map(av => calcISAK8(av.dobras || {}));
+                  const vL = isakVals[isakVals.length - 1], vP = isakVals.length >= 2 ? isakVals[isakVals.length - 2] : null;
+                  const vFirst = isakVals.find(v => v != null);
+                  const delta = vL != null && vP != null ? vL - vP : null;
+                  const varTotal = vL != null && vFirst != null ? vL - vFirst : null;
+                  return (
+                    <tr style={{ borderTop:'2px solid #d4d4d4', borderBottom:'1px solid #eee', background:'rgba(180,83,9,0.09)' }}>
+                      <td style={{ ...tdStyle, textAlign:'left', fontWeight:800, whiteSpace:'nowrap', paddingLeft:7 }}>Σ 8 dobras (ISAK)</td>
+                      {isakVals.map((v, idx) => (
+                        <td key={idx} style={{ ...tdStyle, fontWeight:800, background: idx === isakVals.length - 1 ? '#f0fdf4' : idx % 2 === 0 ? '#fff' : '#fafafa' }}>
+                          {v != null ? n(v, 1) : '—'}
+                        </td>
+                      ))}
+                      {showExtra && (
+                        <td style={{ ...tdStyle, fontWeight:700, color: delta == null ? '#999' : delta < -0.05 ? '#16a34a' : delta > 0.05 ? '#dc2626' : '#888' }}>
+                          {delta == null ? '—' : (delta > 0 ? '+' : '') + n(delta, 1)}
+                        </td>
+                      )}
+                      {showExtra && (
+                        <td style={{ ...tdStyle, fontWeight:800, color: varTotal == null ? '#999' : varTotal < -0.05 ? '#16a34a' : varTotal > 0.05 ? '#dc2626' : '#888' }}>
+                          {varTotal == null ? '—' : (varTotal > 0 ? '+' : '') + n(varTotal, 1)}
+                        </td>
+                      )}
+                      {showExtra && (
+                        <td style={{ ...tdStyle }}>
+                          <SparkRow vals={isakVals} lowerIsBetter={true}/>
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })()}
+
                 {circsRows.length > 0 && (
                   <tr>
                     <td colSpan={99} style={{ padding:'4px 7px 2px', background:'rgba(37,99,235,0.06)', fontSize:8, fontWeight:700, color:'rgba(37,99,235,0.8)', textTransform:'uppercase', letterSpacing:'0.07em' }}>
@@ -1354,9 +1420,11 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, tex
 };
 
 // ---- Modal de pré-visualização e edição do relatório ----
-const PrintPreviewModal = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, texts, onTextsChange, onClose, onPrint, aiSummary = '' }) => {
+const PrintPreviewModal = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, texts, onTextsChange, sections = {}, onSectionsChange = () => {}, onClose, onPrint, aiSummary = '' }) => {
   const [draft, setDraft] = React.useState({ ...texts });
+  const [draftSections, setDraftSections] = React.useState({ ...sections });
   const updateText = (key, val) => setDraft(p => ({ ...p, [key]: val }));
+  const toggleSection = (k) => setDraftSections(p => ({ ...p, [k]: p[k] === false }));
 
   React.useEffect(() => {
     const h = e => { if (e.key === 'Escape') onClose(); };
@@ -1366,6 +1434,7 @@ const PrintPreviewModal = ({ patient, avs, protoRef, protoLabel, idade, getProto
 
   const handlePrint = () => {
     onTextsChange(draft);
+    onSectionsChange(draftSections);
     onPrint();
   };
 
@@ -1384,6 +1453,19 @@ const PrintPreviewModal = ({ patient, avs, protoRef, protoLabel, idade, getProto
           🖨 Imprimir
         </button>
       </div>
+      {/* Barra de seleção de seções do relatório */}
+      <div style={{ flexShrink:0, background:'#2a2a2a', borderTop:'1px solid #000', display:'flex', alignItems:'center', gap:16, padding:'8px 20px', flexWrap:'wrap' }}>
+        <span style={{ fontSize:10.5, fontWeight:700, color:'#9CA3AF', textTransform:'uppercase', letterSpacing:'0.06em' }}>Seções no PDF</span>
+        {REPORT_SECTIONS.map(s => {
+          const on = draftSections[s.key] !== false;
+          return (
+            <label key={s.key} style={{ display:'inline-flex', alignItems:'center', gap:5, cursor:'pointer', fontSize:12, color: on ? '#fff' : '#7a7a7a', userSelect:'none' }}>
+              <input type="checkbox" checked={on} onChange={() => toggleSection(s.key)} style={{ accentColor:'#2563eb', cursor:'pointer' }} />
+              {s.label}
+            </label>
+          );
+        })}
+      </div>
       {/* Conteúdo scrollável */}
       <div style={{ flex:1, overflow:'auto', padding:'28px 24px', display:'flex', justifyContent:'center' }}>
         <div style={{ background:'#fff', width:794, padding:'32px 40px', boxShadow:'0 2px 24px rgba(0,0,0,0.14)', fontFamily:"'DM Sans',sans-serif" }}>
@@ -1391,6 +1473,7 @@ const PrintPreviewModal = ({ patient, avs, protoRef, protoLabel, idade, getProto
             patient={patient} avs={avs} protoRef={protoRef} protoLabel={protoLabel}
             idade={idade} getProtoG={getProtoG}
             texts={draft} editMode={true} onTextChange={updateText}
+            sections={draftSections}
             aiSummary={aiSummary}
           />
         </div>
@@ -1687,6 +1770,7 @@ const HistoricoTab = ({ patient, avaliacoes, protoRef }) => {
   };
 
   const [reportTexts, setReportTexts] = React.useState(DEFAULT_REPORT_TEXTS);
+  const [reportSections, setReportSections] = React.useState({});
   const [previewOpen, setPreviewOpen] = React.useState(false);
 
   const [aiSummary, setAiSummary] = React.useState(null);
@@ -1787,7 +1871,7 @@ const HistoricoTab = ({ patient, avaliacoes, protoRef }) => {
 
       {/* Relatório impresso — orientado ao paciente */}
       <div className="print-only" style={{ display: "none" }}>
-        <PrintReport patient={patient} avs={avs} protoRef={protoRef} protoLabel={protoLabel} idade={idade} getProtoG={getProtoG} texts={reportTexts} aiSummary={aiSummary||''} />
+        <PrintReport patient={patient} avs={avs} protoRef={protoRef} protoLabel={protoLabel} idade={idade} getProtoG={getProtoG} texts={reportTexts} sections={reportSections} aiSummary={aiSummary||''} />
       </div>
 
       {/* Modal de pré-visualização */}
@@ -1797,6 +1881,8 @@ const HistoricoTab = ({ patient, avaliacoes, protoRef }) => {
           idade={idade} getProtoG={getProtoG}
           texts={reportTexts}
           onTextsChange={setReportTexts}
+          sections={reportSections}
+          onSectionsChange={setReportSections}
           aiSummary={aiSummary||''}
           onClose={() => setPreviewOpen(false)}
           onPrint={() => { setPreviewOpen(false); setTimeout(() => window.print(), 60); }}

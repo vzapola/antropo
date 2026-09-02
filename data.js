@@ -202,6 +202,15 @@ const PAL_FATORES = {
 // GET a partir de uma TMB (kcal/dia) e um fator PAL. Retorna null se faltar TMB.
 const calcGET = (tmb, palFator) => (tmb != null && palFator ? tmb * palFator : null);
 
+// Resolve o nível de atividade — chave PAL (string, ex.: "moderado") ou valor
+// personalizado (número, ex.: 1.63) — para { fator, label, desc, custom }.
+const resolvePAL = (atividade) => {
+  if (typeof atividade === "number" && atividade > 0)
+    return { fator: atividade, label: "Personalizado", desc: `PAL ${atividade.toFixed(2).replace(".", ",")}`, custom: true };
+  const p = PAL_FATORES[atividade] || PAL_FATORES.moderado;
+  return { fator: p.fator, label: p.label, desc: p.desc, custom: false };
+};
+
 // ===== SOMA ISAK 8 DOBRAS =====
 const calcISAK8 = (d) => {
   const keys = ["tricipital","subescapular","biceps","suprailíaca","supraespinal","abdominal","coxa","panturrilha"];
@@ -310,7 +319,7 @@ Object.assign(window, {
   calcRCQ, classRCQ, calcRCE, classRCE, calcIC, calcIAC,
   calcCMB, calcAMB, calcAMBc, calcLee,
   calcHB, calcMifflin, calcCunningham,
-  PAL_FATORES, calcGET,
+  PAL_FATORES, calcGET, resolvePAL,
   calcPIIMC, calcLorentz, calcDevine, calcFaixaPesoIdeal,
   calcISAK8, calcCarterDC, calcWurch, mkComp,
   calcularTudo,
