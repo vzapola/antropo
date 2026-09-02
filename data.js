@@ -188,6 +188,20 @@ const calcHB        = (s, p, h, i) => s === "M" ? 88.362 + 13.397*p + 4.799*h - 
 const calcMifflin   = (s, p, h, i) => { const b = 10*p + 6.25*h - 5*i; return s === "M" ? b+5 : b-161; };
 const calcCunningham = (mlg) => mlg ? 500 + 22 * mlg : null;
 
+// ===== GASTO ENERGÉTICO TOTAL (GET) =====
+// Fator de nível de atividade física (PAL) — pontos representativos dentro das
+// faixas da FAO/OMS/UNU (2001). GET (gasto energético total) = TMB × PAL.
+// Ver FORMULAS.md, seção "Gasto energético".
+const PAL_FATORES = {
+  sedentario:    { fator: 1.40, label: "Sedentário",    desc: "Trabalho sentado, sem exercício regular" },
+  leve:          { fator: 1.55, label: "Leve",          desc: "Exercício leve 1–3×/semana" },
+  moderado:      { fator: 1.70, label: "Moderado",      desc: "Exercício moderado 3–5×/semana" },
+  intenso:       { fator: 1.85, label: "Intenso",       desc: "Exercício intenso 6–7×/semana" },
+  muito_intenso: { fator: 2.10, label: "Muito intenso", desc: "Trabalho físico pesado ou 2 treinos/dia" },
+};
+// GET a partir de uma TMB (kcal/dia) e um fator PAL. Retorna null se faltar TMB.
+const calcGET = (tmb, palFator) => (tmb != null && palFator ? tmb * palFator : null);
+
 // ===== SOMA ISAK 8 DOBRAS =====
 const calcISAK8 = (d) => {
   const keys = ["tricipital","subescapular","biceps","suprailíaca","supraespinal","abdominal","coxa","panturrilha"];
@@ -296,6 +310,7 @@ Object.assign(window, {
   calcRCQ, classRCQ, calcRCE, classRCE, calcIC, calcIAC,
   calcCMB, calcAMB, calcAMBc, calcLee,
   calcHB, calcMifflin, calcCunningham,
+  PAL_FATORES, calcGET,
   calcPIIMC, calcLorentz, calcDevine, calcFaixaPesoIdeal,
   calcISAK8, calcCarterDC, calcWurch, mkComp,
   calcularTudo,

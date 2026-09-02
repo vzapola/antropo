@@ -226,9 +226,10 @@ const AvaliacaoFormTab = ({ patient, avaliacao: initialAv, isNew, onSave, protoR
   const sexo = patient.sexo;
   const [subTab, setSubTab] = React.useState(0);
   const [focusedKey, setFocusedKey] = React.useState(null);
+  const [tmbBase, setTmbBase] = React.useState("mifflin");
   const [form, setForm] = React.useState(() => {
-    if (initialAv) return { _id: initialAv.id, data: initialAv.data, peso: String(initialAv.peso), altura: String(initialAv.altura), dobras: { ...initialAv.dobras }, circs: { ...initialAv.circs } };
-    return { data: new Date().toISOString().slice(0, 10), peso: "", altura: "", dobras: {}, circs: {} };
+    if (initialAv) return { _id: initialAv.id, data: initialAv.data, peso: String(initialAv.peso), altura: String(initialAv.altura), atividade: initialAv.atividade || "moderado", dobras: { ...initialAv.dobras }, circs: { ...initialAv.circs } };
+    return { data: new Date().toISOString().slice(0, 10), peso: "", altura: "", atividade: "moderado", dobras: {}, circs: {} };
   });
 
   const setF = k => v => setForm(p => ({ ...p, [k]: v }));
@@ -239,7 +240,7 @@ const AvaliacaoFormTab = ({ patient, avaliacao: initialAv, isNew, onSave, protoR
   const alt  = parseFloat(form.altura) || 0;
   const res  = React.useMemo(() => (!peso || !alt) ? null : calcularTudo(peso, alt, sexo, idade, form.dobras, form.circs), [peso, alt, sexo, idade, form.dobras, form.circs]);
 
-  const SUB_TABS = ["Medidas gerais", "Dobras cutâneas", "Circunferências", "Resultados"];
+  const SUB_TABS = ["Medidas gerais", "Dobras cutâneas", "Circunferências", "Resultados", "Energia"];
   const protoOk = (key) => {
     const mapKey = ["JP3","Guedes","Petroski"].includes(key) ? key + "_" + sexo : key;
     const dobras = PROTOCOL_DOBRAS[mapKey];
@@ -247,13 +248,13 @@ const AvaliacaoFormTab = ({ patient, avaliacao: initialAv, isNew, onSave, protoR
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      <div style={{ display: "flex", borderBottom: "1px solid var(--border)", padding: "0 24px", background: "var(--surface)", flexShrink: 0 }}>
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", minWidth: 0 }}>
+      <div style={{ display: "flex", borderBottom: "1px solid var(--border)", padding: "0 24px", background: "var(--surface)", flexShrink: 0, overflowX: "auto", minWidth: 0 }}>
         {SUB_TABS.map((t, i) => (
-          <button key={i} onClick={() => setSubTab(i)} style={{ padding: "11px 16px", border: "none", background: "transparent", color: subTab === i ? "var(--accent)" : "var(--muted)", fontSize: 13, fontWeight: subTab === i ? 700 : 400, borderBottom: subTab === i ? "2px solid var(--accent)" : "2px solid transparent", cursor: "pointer", fontFamily: "inherit" }}>{t}</button>
+          <button key={i} onClick={() => setSubTab(i)} style={{ padding: "11px 16px", border: "none", background: "transparent", color: subTab === i ? "var(--accent)" : "var(--muted)", fontSize: 13, fontWeight: subTab === i ? 700 : 400, borderBottom: subTab === i ? "2px solid var(--accent)" : "2px solid transparent", cursor: "pointer", fontFamily: "inherit", flexShrink: 0, whiteSpace: "nowrap" }}>{t}</button>
         ))}
         <div style={{ flex: 1 }} />
-        {isNew && <div style={{ display: "flex", alignItems: "center" }}><Btn small onClick={() => onSave(form)}>Salvar avaliação</Btn></div>}
+        {isNew && <div style={{ display: "flex", alignItems: "center", flexShrink: 0 }}><Btn small onClick={() => onSave(form)}>Salvar avaliação</Btn></div>}
       </div>
 
       <div onMouseDown={() => setFocusedKey(null)} style={{ flex: 1, overflowY: "auto" }}>
@@ -265,6 +266,10 @@ const AvaliacaoFormTab = ({ patient, avaliacao: initialAv, isNew, onSave, protoR
               <div />
               <Field label="Peso" value={form.peso} onChange={setF("peso")} type="number" unit="kg" placeholder="ex: 72,0" />
               <Field label="Altura" value={form.altura} onChange={setF("altura")} type="number" unit="cm" placeholder="ex: 165" />
+              <div style={{ gridColumn: "1 / -1" }}>
+                <Select label="Nível de atividade física" value={form.atividade || "moderado"} onChange={setF("atividade")}
+                  options={Object.entries(PAL_FATORES).map(([k, v]) => ({ value: k, label: `${v.label} · PAL ${fmtN(v.fator, 2)} — ${v.desc}` }))} />
+              </div>
             </div>
             {res && (
               <div style={{ background: "var(--accent-light)", border: "1px solid var(--border)", borderRadius: 8, padding: "14px 18px", display: "flex", gap: 28, alignItems: "center", flexWrap: "wrap" }}>
@@ -276,10 +281,6 @@ const AvaliacaoFormTab = ({ patient, avaliacao: initialAv, isNew, onSave, protoR
                 <div>
                   <Badge tag={res.classIMC.tag}>{res.classIMC.label}</Badge>
                   <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 4 }}>Classificação OMS</div>
-                </div>
-                <div style={{ marginLeft: "auto" }}>
-                  <div style={{ fontSize: 10.5, color: "var(--muted)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>PESO IDEAL (IMC-alvo 22)</div>
-                  <div style={{ fontSize: 22, fontWeight: 700, fontFamily: "'JetBrains Mono',monospace" }}>{fmtN(res.piImc, 1)} kg</div>
                 </div>
               </div>
             )}
@@ -461,9 +462,6 @@ const AvaliacaoFormTab = ({ patient, avaliacao: initialAv, isNew, onSave, protoR
                         <TableSection title="Dados gerais" rows={[
                           { indicador: "IMC ²", valor: res.imc, dec: 1, unidade: "kg/m²", badge: res.classIMC },
                           fp ? { indicador: "Faixa de peso eutrófico ¹", valor: null, unidade: `${fmtN(fp[0],1)} – ${fmtN(fp[1],1)} kg`, badge: null } : null,
-                          { indicador: "Peso ideal — IMC-alvo 22 ¹", valor: res.piImc, dec: 1, unidade: "kg" },
-                          { indicador: "Peso ideal — Lorentz ¹", valor: res.piLorentz, dec: 1, unidade: "kg" },
-                          { indicador: "Peso ideal — Devine ¹", valor: res.piDevine, dec: 1, unidade: "kg" },
                         ].filter(Boolean)} />
                         <ProtoSection title="Jackson & Pollock 3 dobras (1978/1980)" publico={sexo === "M" ? "Homens 18–61 anos · adultos gerais" : "Mulheres 18–55 anos · adultas gerais"} protoId="JP3" protoRef={protoRef} onProtoChange={onProtoChange} rows={[
                           { indicador: "Densidade corporal", valor: res.jp3dc, dec: 4, unidade: "g/cm³" },
@@ -534,9 +532,90 @@ const AvaliacaoFormTab = ({ patient, avaliacao: initialAv, isNew, onSave, protoR
                     </table>
                   </div>
                   <div style={{ padding: "12px 16px", borderTop: "1px solid var(--border)", background: "var(--bg)", display: "flex", flexDirection: "column", gap: 5 }}>
-                    <div style={{ fontSize: 11, color: "var(--muted)", lineHeight: 1.5 }}><sup>¹</sup> Faixa de peso ideal calculada a partir da altura e dos valores limites do IMC de eutrofia (IMC 18,5–24,9 kg/m²).</div>
+                    <div style={{ fontSize: 11, color: "var(--muted)", lineHeight: 1.5 }}><sup>¹</sup> Faixa de peso eutrófico calculada a partir da altura e dos valores limites do IMC de eutrofia (IMC 18,5–24,9 kg/m²).</div>
                     <div style={{ fontSize: 11, color: "var(--muted)", lineHeight: 1.5 }}><sup>²</sup> IMC avaliado conforme classificações da OMS (2006). Para idosos (≥60 anos), aplicada a classificação de Lipschitz (1994).</div>
                     <div style={{ fontSize: 11, color: "var(--muted)", lineHeight: 1.5 }}>⚠️ Valores calculados on-the-fly — nenhum resultado derivado é persistido. Massa Magra = Massa Livre de Gordura no modelo bicompartimental.</div>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        )}
+
+        {/* ENERGIA */}
+        {subTab === 4 && (
+          <div style={{ padding: "20px 24px", maxWidth: 720 }}>
+            {!res ? (
+              <Empty icon="🔥" title="Preencha peso e altura" sub="A TMB e o GET aparecem ao vivo." action={<Btn onClick={() => setSubTab(0)}>Dados gerais</Btn>} />
+            ) : (() => {
+              const pal = PAL_FATORES[form.atividade] || PAL_FATORES.moderado;
+              const palAssumido = !form.atividade;
+              const baseOk = res[tmbBase] != null ? tmbBase : "mifflin";
+              const tmbVal = res[baseOk];
+              const get = calcGET(tmbVal, pal.fator);
+              const TMB_OPCOES = [
+                { key: "mifflin", nome: "Mifflin-St Jeor (1990)", nota: "Preferida pela Academy of Nutrition and Dietetics" },
+                { key: "hb",      nome: "Harris-Benedict revisada (Roza, 1984)", nota: "Equação clássica" },
+                { key: "cunning", nome: "Cunningham (1980)", nota: "Requer MLG — atletas / alta massa magra" },
+              ];
+              return (
+                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                  {/* GET em destaque */}
+                  <div style={{ background: "var(--accent-light)", border: "1px solid var(--border)", borderRadius: 10, padding: "18px 22px", display: "flex", gap: 32, alignItems: "center", flexWrap: "wrap" }}>
+                    <div>
+                      <div style={{ fontSize: 10.5, color: "var(--muted)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>Gasto energético total (GET)</div>
+                      <div style={{ fontSize: 30, fontWeight: 700, fontFamily: "'JetBrains Mono',monospace", lineHeight: 1.1 }}>{fmtN(get, 0)} <span style={{ fontSize: 14, color: "var(--muted)", fontWeight: 400 }}>kcal/dia</span></div>
+                      <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 3 }}>TMB {fmtN(tmbVal, 0)} × PAL {fmtN(pal.fator, 2)}</div>
+                    </div>
+                    <div style={{ marginLeft: "auto", textAlign: "right" }}>
+                      <div style={{ fontSize: 10.5, color: "var(--muted)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>Nível de atividade</div>
+                      <div style={{ fontSize: 15, fontWeight: 700 }}>{pal.label}{palAssumido && <span style={{ fontSize: 11, fontWeight: 400, color: "var(--muted)" }}> (assumido)</span>}</div>
+                      <div style={{ fontSize: 11, color: "var(--muted)" }}>{pal.desc}</div>
+                    </div>
+                  </div>
+
+                  {/* TMB base do GET */}
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: "var(--muted)", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 8 }}>TMB base do cálculo</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                      {TMB_OPCOES.map(o => {
+                        const v = res[o.key];
+                        const sel = baseOk === o.key;
+                        return (
+                          <label key={o.key} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", border: `1px solid ${sel ? "var(--accent)" : "var(--border)"}`, borderRadius: 8, cursor: v == null ? "not-allowed" : "pointer", background: sel ? "var(--accent-light)" : "var(--surface)", opacity: v == null ? 0.5 : 1 }}>
+                            <input type="radio" name="tmbBase" checked={sel} disabled={v == null} onChange={() => setTmbBase(o.key)} style={{ accentColor: "var(--accent)" }} />
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontSize: 13, fontWeight: 600 }}>{o.nome}</div>
+                              <div style={{ fontSize: 11, color: "var(--muted)" }}>{o.nota}</div>
+                            </div>
+                            <div style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, fontSize: 15 }}>{v != null ? fmtN(v, 0) : "—"}<span style={{ fontSize: 10, color: "var(--muted)", fontWeight: 400 }}> kcal</span></div>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Tabela de fatores PAL */}
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: "var(--muted)", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 8 }}>Fatores de atividade (PAL) · FAO/OMS/UNU (2001)</div>
+                    <div style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
+                      {Object.entries(PAL_FATORES).map(([k, v], i) => {
+                        const sel = (form.atividade || "moderado") === k;
+                        return (
+                          <div key={k} style={{ display: "flex", alignItems: "center", gap: 12, padding: "9px 14px", borderTop: i > 0 ? "1px solid var(--border)" : "none", background: sel ? "var(--accent-light)" : "transparent" }}>
+                            <div style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, width: 44 }}>{fmtN(v.fator, 2)}</div>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontSize: 13, fontWeight: sel ? 700 : 600 }}>{v.label}</div>
+                              <div style={{ fontSize: 11, color: "var(--muted)" }}>{v.desc}</div>
+                            </div>
+                            <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 13, color: "var(--muted)" }}>{fmtN(tmbVal * v.fator, 0)} kcal</div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div style={{ fontSize: 11, color: "var(--muted)", lineHeight: 1.5, marginTop: 8 }}>
+                      O nível de atividade é definido por avaliação (aba Medidas gerais) e fica salvo no histórico. GET estimado — não substitui calorimetria indireta nem avaliação individualizada.
+                    </div>
                   </div>
                 </div>
               );
@@ -629,7 +708,7 @@ const DEFAULT_REPORT_TEXTS = {
   rcq:       "Razão entre a circunferência da cintura e a do quadril. Indica o padrão de distribuição da gordura corporal, classificado como androide (acúmulo central) ou ginoide (acúmulo periférico).",
   rce:       "Razão entre a circunferência da cintura e a estatura. Um valor abaixo de 0,50 indica que a cintura é menor que metade da altura, o que é considerado adequado para a maioria dos adultos.",
   isak8:     "Soma das 8 dobras cutâneas padronizadas pelo protocolo ISAK (International Society for the Advancement of Kinanthropometry). Reflete o volume total de gordura subcutânea nos pontos tricipital, subescapular, bíceps, suprailíaca, supraespinal, abdominal, coxa e panturrilha. Valores menores indicam menor acúmulo de gordura subcutânea.",
-  notas:     "Composição corporal estimada pelo protocolo indicado, com conversão por Siri (1961). Massa muscular esquelética calculada por Lee et al. (2000). IMC classificado conforme OMS (2006). Faixa de peso ideal para IMC entre 18,5 e 24,9 kg/m². Os resultados são estimativas obtidas a partir de medidas externas e não substituem exames laboratoriais nem avaliação clínica individualizada.",
+  notas:     "Composição corporal estimada pelo protocolo indicado, com conversão por Siri (1961). Massa muscular esquelética calculada por Lee et al. (2000). IMC classificado conforme OMS (2006). Faixa de peso eutrófico correspondente a IMC entre 18,5 e 24,9 kg/m². Os resultados são estimativas obtidas a partir de medidas externas e não substituem exames laboratoriais nem avaliação clínica individualizada.",
 };
 
 // ---- Relatório impresso orientado ao paciente ----
@@ -2046,7 +2125,7 @@ const HistoricoTab = ({ patient, avaliacoes, protoRef }) => {
 
       {/* Rodapé com notas científicas — apenas na tela */}
       <div className="no-print" style={{ padding: "14px 18px", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 10, display: "flex", flexDirection: "column", gap: 5 }}>
-        <div style={{ fontSize: 11, color: "var(--muted)", lineHeight: 1.6 }}><sup>¹</sup> Faixa de peso ideal calculada a partir da altura e dos valores limites do IMC de eutrofia (IMC 18,5–24,9 kg/m²).</div>
+        <div style={{ fontSize: 11, color: "var(--muted)", lineHeight: 1.6 }}><sup>¹</sup> Faixa de peso eutrófico calculada a partir da altura e dos valores limites do IMC de eutrofia (IMC 18,5–24,9 kg/m²).</div>
         <div style={{ fontSize: 11, color: "var(--muted)", lineHeight: 1.6 }}><sup>²</sup> IMC avaliado conforme classificações da OMS (2006). Para idosos (≥60 anos), aplicada a classificação de Lipschitz (1994).</div>
         <div style={{ fontSize: 11, color: "var(--muted)", lineHeight: 1.6 }}>Massa Magra = Massa Livre de Gordura no modelo bicompartimental utilizado. Massa Residual estimada por Würch (1973).</div>
         <div style={{ fontSize: 11, color: "var(--muted)", lineHeight: 1.6 }}>Protocolo de %G: {protoLabel}. Classificações de adiposidade por Lohman (1992).</div>

@@ -132,11 +132,11 @@
 <body>
 <div id="root"></div>
 
-<script src="data.js?v=5"></script>
-<script type="text/babel" src="components_v2.jsx"></script>
-<script type="text/babel" src="AnatomyFigure.jsx"></script>
-<script type="text/babel" src="PatientPanel.jsx"></script>
-<script type="text/babel" src="PatientView.jsx"></script>
+<script src="data.js?v=9"></script>
+<script type="text/babel" src="components_v2.jsx?v=9"></script>
+<script type="text/babel" src="AnatomyFigure.jsx?v=9"></script>
+<script type="text/babel" src="PatientPanel.jsx?v=9"></script>
+<script type="text/babel" src="PatientView.jsx?v=9"></script>
 
 <script type="text/babel">
 
@@ -278,6 +278,7 @@ const App = () => {
     const nv = {
       id: form._id || Date.now(), paciente_id: selected.id,
       data: form.data, peso: parseFloat(form.peso), altura: parseFloat(form.altura),
+      atividade: form.atividade || "moderado",
       dobras: form.dobras, circs: form.circs,
     };
     if (form._id) {
@@ -290,6 +291,64 @@ const App = () => {
   // Avaliação: excluir
   const handleDeleteAv = (avId) => {
     setAvaliacoes(avs => avs.filter(a => a.id !== avId));
+  };
+
+  // ── Backup: exportar / restaurar ──────────────────────────────────
+  // Exporta TODAS as chaves antropo_* (e zapantro_* legado) para um .json.
+  // Guarda os valores como strings cruas — mesmo formato do localStorage —
+  // para que a restauração seja idêntica byte a byte.
+  const backupInputRef = React.useRef(null);
+
+  const handleExportBackup = () => {
+    const dump = {};
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && (k.startsWith("antropo_") || k.startsWith("zapantro_"))) {
+        dump[k] = localStorage.getItem(k);
+      }
+    }
+    const blob = new Blob([JSON.stringify(dump, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `antropo_backup_${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImportBackup = (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      let dump;
+      try {
+        dump = JSON.parse(ev.target.result);
+      } catch {
+        alert("Não foi possível ler o arquivo. Confirme que é um backup .json válido do Antropo.");
+        return;
+      }
+      const keys = Object.keys(dump || {}).filter(k => k.startsWith("antropo_") || k.startsWith("zapantro_"));
+      if (keys.length === 0) {
+        alert("Este arquivo não parece ser um backup do Antropo (nenhuma chave reconhecida).");
+        return;
+      }
+      let nPac = 0, nAv = 0;
+      try { nPac = JSON.parse(dump.antropo_patients || "[]").length; } catch {}
+      try { nAv  = JSON.parse(dump.antropo_avaliacoes || "[]").length; } catch {}
+      const ok = window.confirm(
+        `Restaurar este backup?\n\n` +
+        `Ele contém ${nPac} paciente(s) e ${nAv} avaliação(ões).\n\n` +
+        `⚠️ Isto vai SUBSTITUIR todos os dados atuais deste navegador. ` +
+        `Se tiver dúvida, exporte um backup do estado atual antes.`
+      );
+      if (!ok) return;
+      keys.forEach(k => localStorage.setItem(k, dump[k]));
+      alert("Backup restaurado com sucesso. A página vai recarregar.");
+      window.location.reload();
+    };
+    reader.readAsText(file);
+    e.target.value = ""; // permite reimportar o mesmo arquivo
   };
 
   return (
@@ -315,6 +374,22 @@ const App = () => {
         }}>
           {sidebarCollapsed ? "▶" : "◀"}
         </button>        <div style={{ flex: 1 }} />
+
+        {/* Backup: exportar / restaurar */}
+        <button onClick={handleExportBackup} title="Exportar backup dos dados (JSON)" style={{
+          background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.10)",
+          borderRadius: 6, height: 32, padding: "0 12px", cursor: "pointer",
+          color: "var(--topbar-text)", fontSize: 12.5, fontWeight: 600, fontFamily: "inherit",
+          display: "inline-flex", alignItems: "center", gap: 6, flexShrink: 0,
+        }}>⬇ Backup</button>
+        <button onClick={() => backupInputRef.current && backupInputRef.current.click()} title="Restaurar backup a partir de um arquivo .json" style={{
+          background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.10)",
+          borderRadius: 6, height: 32, padding: "0 12px", cursor: "pointer",
+          color: "var(--topbar-text)", fontSize: 12.5, fontWeight: 600, fontFamily: "inherit",
+          display: "inline-flex", alignItems: "center", gap: 6, flexShrink: 0,
+        }}>⬆ Restaurar</button>
+        <input ref={backupInputRef} type="file" accept="application/json,.json" onChange={handleImportBackup} style={{ display: "none" }} />
+
         <button onClick={() => setShowDrawer(true)} style={{
           background: "var(--accent)", color: "var(--accent-text)",
           border: "none", borderRadius: 6, padding: "6px 14px",

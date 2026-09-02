@@ -21,3 +21,9 @@ desktop.ini
 # Dados exportados localmente (caso adicione exportação)
 *.local.json
 backup-*.json
+
+# Backups locais com dados de pacientes — NUNCA versionar (privacidade clínica)
+backups/
+
+# Claude Code (worktrees, planos, sessão) — não versionar
+.claude/

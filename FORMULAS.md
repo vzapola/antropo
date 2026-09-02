@@ -383,6 +383,28 @@ Requer MLG previamente calculada.
 
 ---
 
+## 9b. Gasto energético total (GET)
+
+**Definição**: GET = TMB × PAL, onde PAL (*physical activity level*) é o fator de nível de atividade física.
+
+**Referência**: FAO/WHO/UNU. Human energy requirements. Report of a Joint FAO/WHO/UNU Expert Consultation. Rome, 2001. (FAO Food and Nutrition Technical Report Series 1.)
+
+A FAO/OMS/UNU (2001) define faixas de PAL por estilo de vida: sedentário/leve 1,40–1,69; ativo/moderado 1,70–1,99; vigoroso 2,00–2,40. Para uso clínico o sistema adota **cinco pontos representativos** dentro dessas faixas:
+
+| Chave | Nível | PAL | Descrição |
+|---|---|---|---|
+| `sedentario` | Sedentário | 1,40 | Trabalho sentado, sem exercício regular |
+| `leve` | Leve | 1,55 | Exercício leve 1–3×/semana |
+| `moderado` | Moderado | 1,70 | Exercício moderado 3–5×/semana |
+| `intenso` | Intenso | 1,85 | Exercício intenso 6–7×/semana |
+| `muito_intenso` | Muito intenso | 2,10 | Trabalho físico pesado ou 2 treinos/dia |
+
+Implementado em `data.js` como `PAL_FATORES` e `calcGET(tmb, palFator)`. A TMB base é escolhida na UI (Mifflin-St Jeor por padrão; Harris-Benedict ou Cunningham como alternativas). O nível de atividade é registrado **por avaliação** (campo `atividade`, retrocompatível — avaliações sem o campo assumem `moderado`).
+
+> Observação: os pontos de PAL são valores representativos; a literatura traz faixas, não valores únicos. Uso clínico como estimativa — não substitui calorimetria indireta.
+
+---
+
 ## 10. Casos de validação para testes
 
 Os casos abaixo são extraídos da literatura ou construídos a partir dos exemplos das publicações originais. Tolerâncias: densidade ±0.001; %G ±0.5 pontos; IMC ±0.1.
