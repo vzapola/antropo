@@ -211,6 +211,93 @@ const resolvePAL = (atividade) => {
   return { fator: p.fator, label: p.label, desc: p.desc, custom: false };
 };
 
+// ===== PROJEÇÃO DE PESO — modelo dinâmico de Hall / NIH Body Weight Planner =====
+// Modelo de 2 compartimentos (massa gorda FM, massa livre de gordura FFM),
+// partição de Forbes e termogênese adaptativa, integrado em passo diário.
+// Referências: Chow & Hall (2008), Hall et al. Lancet 2011 (base do NIH BWP).
+// Ver FORMULAS.md, seção "Modelo dinâmico de peso".
+// ⚠️ Coeficientes a validar contra a calculadora oficial: niddk.nih.gov/bwp
+const _BWP = { RHO_F: 9440, RHO_L: 1820, GAMMA_L: 22, GAMMA_F: 3.2, TEF: 0.10, BETA_AT: 0.14 };
+
+// Simula a trajetória diária sob ingestão constante (kcal/dia).
+// palInicial = atividade habitual (referência da termogênese adaptativa);
+// palInterv  = atividade durante a intervenção (pode diferir → "mudança de atividade").
+// Retorna { serie:[{dia,peso,fm,ffm,ee}], K, delta, EI0 }.
+const _bwpSimular = (FM0, FFM0, tmb, palInicial, palInterv, ingestao, dias) => {
+  const c = _BWP;
+  const BW0 = FM0 + FFM0;
+  const K = tmb - c.GAMMA_L * FFM0 - c.GAMMA_F * FM0;   // constante p/ RMR(0) = TMB
+  const EI0 = tmb * palInicial;                          // manutenção habitual (GET inicial)
+  const getInterv = tmb * palInterv;
+  const delta = BW0 > 0 ? (getInterv * (1 - c.TEF) - tmb) / BW0 : 0; // atividade física por kg
+  let FM = FM0, FFM = FFM0;
+  const serie = [{ dia: 0, peso: BW0, fm: FM0, ffm: FFM0, ee: EI0 }];
+  for (let d = 1; d <= dias; d++) {
+    const BW = FM + FFM;
+    const RMR = K + c.GAMMA_L * FFM + c.GAMMA_F * FM;
+    const PA  = delta * BW;
+    const TEF = c.TEF * ingestao;
+    const AT  = c.BETA_AT * (EI0 - ingestao);            // termogênese adaptativa (reduz EE no déficit)
+    const EE  = RMR + PA + TEF - AT;
+    const dEnergia = ingestao - EE;                      // balanço energético diário (kcal)
+    const p = 2 / (2 + Math.max(FM, 0.1));               // Forbes: fração destinada à FFM
+    FFM += p * dEnergia / c.RHO_L;
+    FM  += (1 - p) * dEnergia / c.RHO_F;
+    if (FM < 0.5) FM = 0.5;
+    if (FFM < 1) FFM = 1;
+    serie.push({ dia: d, peso: FM + FFM, fm: FM, ffm: FFM, ee: EE });
+  }
+  return { serie, K, delta, EI0 };
+};
+
+// Projeção completa. params:
+//   peso, pctG (%), tmb (kcal/d), palInicial, palIntervencao, dias,
+//   modo: "ingestao" (usa `ingestao` kcal/d) | "alvo" (resolve ingestão p/ `pesoAlvo`).
+// Retorna série + resumo, ou null se faltar dado essencial.
+const projetarPeso = (params) => {
+  const { peso, pctG, tmb, palInicial, palIntervencao, dias, modo, ingestao, pesoAlvo } = params || {};
+  if (!peso || !tmb || pctG == null) return null;
+  const FM0 = peso * pctG / 100, FFM0 = peso - FM0;
+  const palI = palInicial || 1.7;
+  const palX = palIntervencao || palI;
+  const D = Math.max(1, Math.min(Math.round(dias || 90), 1825));
+  const EI0 = tmb * palI;
+
+  let ingest = ingestao;
+  if (modo === "alvo" && pesoAlvo) {
+    let lo = 400, hi = 9000;                              // bisseção na ingestão
+    for (let it = 0; it < 44; it++) {
+      const mid = (lo + hi) / 2;
+      const s = _bwpSimular(FM0, FFM0, tmb, palI, palX, mid, D).serie;
+      const pf = s[s.length - 1].peso;
+      if (pf < pesoAlvo) lo = mid; else hi = mid;         // mais ingestão → maior peso final
+    }
+    ingest = (lo + hi) / 2;
+  }
+  ingest = ingest || EI0;
+
+  const sim = _bwpSimular(FM0, FFM0, tmb, palI, palX, ingest, D);
+  const fim = sim.serie[sim.serie.length - 1];
+  const pctGFinal = fim.peso > 0 ? fim.fm / fim.peso * 100 : null;
+  // Ingestão de manutenção no peso final (EE=EI → EI=(RMR+PA)/(1-TEF)):
+  const RMRf = sim.K + _BWP.GAMMA_L * fim.ffm + _BWP.GAMMA_F * fim.fm;
+  const manutencao = (RMRf + sim.delta * fim.peso) / (1 - _BWP.TEF);
+
+  return {
+    serie: sim.serie,
+    ingestao: ingest,
+    ei0: EI0,
+    pesoFinal: fim.peso,
+    pctGFinal,
+    fmFinal: fim.fm,
+    ffmFinal: fim.ffm,
+    variacao: fim.peso - peso,
+    deficitDiario: ingest - EI0,
+    manutencao,
+    sdKg: 0.038 * fim.peso,                               // ±DP ≈ 3,8% (NIH BWP)
+  };
+};
+
 // ===== SOMA ISAK 8 DOBRAS =====
 const calcISAK8 = (d) => {
   const keys = ["tricipital","subescapular","biceps","suprailíaca","supraespinal","abdominal","coxa","panturrilha"];
@@ -319,7 +406,7 @@ Object.assign(window, {
   calcRCQ, classRCQ, calcRCE, classRCE, calcIC, calcIAC,
   calcCMB, calcAMB, calcAMBc, calcLee,
   calcHB, calcMifflin, calcCunningham,
-  PAL_FATORES, calcGET, resolvePAL,
+  PAL_FATORES, calcGET, resolvePAL, projetarPeso,
   calcPIIMC, calcLorentz, calcDevine, calcFaixaPesoIdeal,
   calcISAK8, calcCarterDC, calcWurch, mkComp,
   calcularTudo,

@@ -227,6 +227,12 @@ const AvaliacaoFormTab = ({ patient, avaliacao: initialAv, isNew, onSave, protoR
   const [subTab, setSubTab] = React.useState(0);
   const [focusedKey, setFocusedKey] = React.useState(null);
   const [tmbBase, setTmbBase] = React.useState("mifflin");
+  // Projeção NIH
+  const [projModo, setProjModo] = React.useState("alvo");      // 'alvo' (resolve ingestão) | 'manual'
+  const [projPesoAlvo, setProjPesoAlvo] = React.useState("");
+  const [projDias, setProjDias] = React.useState("90");
+  const [projIngestao, setProjIngestao] = React.useState("");
+  const [projPalInterv, setProjPalInterv] = React.useState("");   // "" = manter atividade atual
   const [form, setForm] = React.useState(() => {
     if (initialAv) return { _id: initialAv.id, data: initialAv.data, peso: String(initialAv.peso), altura: String(initialAv.altura), atividade: initialAv.atividade || "moderado", dobras: { ...initialAv.dobras }, circs: { ...initialAv.circs } };
     return { data: new Date().toISOString().slice(0, 10), peso: "", altura: "", atividade: "moderado", dobras: {}, circs: {} };
@@ -240,7 +246,7 @@ const AvaliacaoFormTab = ({ patient, avaliacao: initialAv, isNew, onSave, protoR
   const alt  = parseFloat(form.altura) || 0;
   const res  = React.useMemo(() => (!peso || !alt) ? null : calcularTudo(peso, alt, sexo, idade, form.dobras, form.circs), [peso, alt, sexo, idade, form.dobras, form.circs]);
 
-  const SUB_TABS = ["Medidas gerais", "Dobras cutâneas", "Circunferências", "Resultados", "Energia"];
+  const SUB_TABS = ["Medidas gerais", "Dobras cutâneas", "Circunferências", "Resultados", "Energia", "Projeção"];
   const protoOk = (key) => {
     const mapKey = ["JP3","Guedes","Petroski"].includes(key) ? key + "_" + sexo : key;
     const dobras = PROTOCOL_DOBRAS[mapKey];
@@ -628,6 +634,130 @@ const AvaliacaoFormTab = ({ patient, avaliacao: initialAv, isNew, onSave, protoR
                     </div>
                     <div style={{ fontSize: 11, color: "var(--muted)", lineHeight: 1.5, marginTop: 8 }}>
                       O nível de atividade fica salvo por avaliação. Clique num nível ou digite um PAL personalizado. GET estimado — não substitui calorimetria indireta nem avaliação individualizada.
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        )}
+
+        {/* PROJEÇÃO */}
+        {subTab === 5 && (
+          <div style={{ padding: "20px 24px" }}>
+            {!res ? (
+              <Empty icon="📉" title="Preencha peso e altura" sub="A projeção usa peso, composição e GET." action={<Btn onClick={() => setSubTab(0)}>Dados gerais</Btn>} />
+            ) : (() => {
+              const PROTO_COMP = { JP3: 'jp3comp', Petroski: 'petcomp', Guedes: 'guedcomp', Faulkner: 'faulkcomp', Durnin: 'dwcomp', Carter: 'cartercomp' };
+              const comp = res[PROTO_COMP[protoRef] || 'jp3comp'];
+              const pctGAd = comp && comp.pctG != null ? comp.pctG : null;
+              const pal = resolvePAL(form.atividade);
+              const baseOk = res[tmbBase] != null ? tmbBase : "mifflin";
+              const tmbVal = res[baseOk];
+              const get = calcGET(tmbVal, pal.fator);
+              if (pctGAd == null) {
+                return <Empty icon="📉" title="Sem %G para o método adotado" sub={`O protocolo adotado (${PROTO_LABELS[protoRef] || 'JP3'}) exige dobras que faltam. Ajuste na aba Resultados.`} action={<Btn onClick={() => setSubTab(3)}>Ver Resultados</Btn>} />;
+              }
+              const palInterv = String(projPalInterv).trim() !== "" ? (Number(String(projPalInterv).replace(",", ".")) || pal.fator) : pal.fator;
+              const dias = Math.max(1, Math.round(Number(projDias) || 90));
+              const pesoAlvo = projModo === "alvo" ? (Number(String(projPesoAlvo).replace(",", ".")) || null) : null;
+              const ingestaoManual = projModo === "manual" ? (Number(String(projIngestao).replace(",", ".")) || Math.round(get)) : null;
+              const proj = projetarPeso({ peso, pctG: pctGAd, tmb: tmbVal, palInicial: pal.fator, palIntervencao: palInterv, dias, modo: projModo, ingestao: ingestaoManual, pesoAlvo });
+              if (!proj) return null;
+              const diffAlvo = pesoAlvo != null ? proj.pesoFinal - pesoAlvo : null;
+              const minSeg = sexo === "M" ? 1500 : 1200;
+              const ingSegura = proj.ingestao >= minSeg;
+              const fmtKcal = (v) => fmtN(Math.round(v), 0);
+              const serie = proj.serie;
+              const stepN = Math.max(1, Math.ceil(serie.length / 140));
+              const pts = serie.filter((_, i) => i % stepN === 0 || i === serie.length - 1);
+              const W = 660, H = 250, padL = 46, padR = 14, padT = 12, padB = 26;
+              const sdAt = (dia) => proj.sdKg * (dia / dias);
+              const allY = [];
+              pts.forEach(s => { allY.push(s.peso + sdAt(s.dia), s.peso - sdAt(s.dia)); });
+              if (pesoAlvo != null) allY.push(pesoAlvo);
+              let y0 = Math.min(...allY), y1 = Math.max(...allY);
+              const yPad = (y1 - y0) * 0.1 || 1; y0 -= yPad; y1 += yPad;
+              const X = (dia) => padL + (dia / dias) * (W - padL - padR);
+              const Y = (p) => padT + (1 - (p - y0) / (y1 - y0)) * (H - padT - padB);
+              const linePts = pts.map(s => `${X(s.dia).toFixed(1)},${Y(s.peso).toFixed(1)}`).join(" ");
+              const band = pts.map(s => `${X(s.dia).toFixed(1)},${Y(s.peso + sdAt(s.dia)).toFixed(1)}`)
+                .concat(pts.slice().reverse().map(s => `${X(s.dia).toFixed(1)},${Y(s.peso - sdAt(s.dia)).toFixed(1)}`)).join(" ");
+              return (
+                <div style={{ display: "grid", gridTemplateColumns: "300px 1fr", gap: 18, alignItems: "start" }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                    <div style={{ background: "var(--accent-light)", border: "1px solid var(--border)", borderRadius: 10, padding: "12px 14px" }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>Dados de partida</div>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, marginBottom: 3 }}><span style={{ color: "var(--muted)" }}>Peso</span><b style={{ fontFamily: "'JetBrains Mono',monospace" }}>{fmtN(peso, 1)} kg</b></div>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, marginBottom: 3 }}><span style={{ color: "var(--muted)" }}>%G adotado</span><b style={{ fontFamily: "'JetBrains Mono',monospace" }}>{fmtN(pctGAd, 1)}%</b></div>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5 }}><span style={{ color: "var(--muted)" }}>GET</span><b style={{ fontFamily: "'JetBrains Mono',monospace" }}>{fmtKcal(get)} kcal/d</b></div>
+                    </div>
+                    <div style={{ display: "flex", gap: 6 }}>
+                      {[["alvo", "Ingestão p/ alvo"], ["manual", "Simulação manual"]].map(([k, l]) => (
+                        <button key={k} onClick={() => setProjModo(k)} style={{ flex: 1, padding: "7px 8px", borderRadius: 7, border: `1px solid ${projModo === k ? "var(--accent)" : "var(--border)"}`, background: projModo === k ? "var(--accent)" : "var(--surface)", color: projModo === k ? "var(--accent-text)" : "var(--text)", fontSize: 11.5, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>{l}</button>
+                      ))}
+                    </div>
+                    {projModo === "alvo" ? (
+                      <React.Fragment>
+                        <Field label="Peso-alvo" value={projPesoAlvo} onChange={setProjPesoAlvo} type="number" unit="kg" placeholder={`ex: ${fmtN(peso - 5, 0)}`} />
+                        <Field label="Prazo" value={projDias} onChange={setProjDias} type="number" unit="dias" placeholder="90" />
+                      </React.Fragment>
+                    ) : (
+                      <React.Fragment>
+                        <Field label="Ingestão diária" value={projIngestao} onChange={setProjIngestao} type="number" unit="kcal" placeholder={String(fmtKcal(get))} />
+                        <Field label="Prazo" value={projDias} onChange={setProjDias} type="number" unit="dias" placeholder="90" />
+                      </React.Fragment>
+                    )}
+                    <div>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: "var(--muted)", marginBottom: 4 }}>Atividade na intervenção (PAL)</div>
+                      <input type="text" inputMode="decimal" value={projPalInterv} onChange={e => setProjPalInterv(e.target.value)} placeholder={`atual: ${fmtN(pal.fator, 2)}`}
+                        style={{ width: "100%", padding: "8px 10px", border: "1px solid var(--border)", borderRadius: 7, background: "var(--surface)", color: "var(--text)", fontSize: 13, fontFamily: "inherit", boxSizing: "border-box" }} />
+                      <div style={{ fontSize: 10.5, color: "var(--muted)", marginTop: 3 }}>Vazio = manter atividade atual. Ex.: 1,8 se a pessoa vai treinar mais.</div>
+                    </div>
+                    <div style={{ borderTop: "1px solid var(--border)", paddingTop: 10, display: "flex", flexDirection: "column", gap: 4 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}><span style={{ color: "var(--muted)" }}>Ingestão usada</span><b style={{ fontFamily: "'JetBrains Mono',monospace" }}>{fmtKcal(proj.ingestao)} kcal/d</b></div>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}><span style={{ color: "var(--muted)" }}>Déficit/superávit</span><b style={{ fontFamily: "'JetBrains Mono',monospace", color: proj.deficitDiario < 0 ? "#16a34a" : proj.deficitDiario > 0 ? "#dc2626" : "var(--text)" }}>{proj.deficitDiario > 0 ? "+" : ""}{fmtKcal(proj.deficitDiario)} kcal/d</b></div>
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                    {!ingSegura && (
+                      <div style={{ background: "rgba(220,38,38,0.08)", border: "1px solid rgba(220,38,38,0.3)", borderRadius: 8, padding: "8px 12px", fontSize: 12, color: "#dc2626" }}>
+                        ⚠️ Ingestão estimada ({fmtKcal(proj.ingestao)} kcal/d) abaixo do mínimo de segurança ({minSeg} kcal/d). Reveja prazo/alvo — decisão clínica do nutricionista.
+                      </div>
+                    )}
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10 }}>
+                      {[
+                        { l: "Peso projetado", v: `${fmtN(proj.pesoFinal, 1)} kg`, s: `± ${fmtN(proj.sdKg, 1)} kg (DP ~3,8%)`, hi: true },
+                        { l: "% Gordura projetado", v: `${fmtN(proj.pctGFinal, 1)}%`, s: `inicial ${fmtN(pctGAd, 1)}%` },
+                        { l: pesoAlvo != null ? "Diferença vs alvo" : "Variação", v: pesoAlvo != null ? `${diffAlvo > 0 ? "+" : ""}${fmtN(diffAlvo, 1)} kg` : `${proj.variacao > 0 ? "+" : ""}${fmtN(proj.variacao, 1)} kg`, s: pesoAlvo != null ? `alvo ${fmtN(pesoAlvo, 1)} kg` : `em ${dias} dias` },
+                      ].map((c, i) => (
+                        <div key={i} style={{ background: c.hi ? "var(--accent-light)" : "var(--surface)", border: "1px solid var(--border)", borderRadius: 10, padding: "12px 14px" }}>
+                          <div style={{ fontSize: 9.5, fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{c.l}</div>
+                          <div style={{ fontSize: 22, fontWeight: 700, fontFamily: "'JetBrains Mono',monospace", lineHeight: 1.15 }}>{c.v}</div>
+                          <div style={{ fontSize: 10.5, color: "var(--muted)" }}>{c.s}</div>
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 10, padding: "14px 16px" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6, flexWrap: "wrap", gap: 6 }}>
+                        <span style={{ fontWeight: 700, fontSize: 13 }}>Curva de peso · dia 0 → {dias}</span>
+                        <span style={{ fontSize: 11, color: "var(--muted)" }}>Manutenção após alvo: <b style={{ color: "var(--text)", fontFamily: "'JetBrains Mono',monospace" }}>{fmtKcal(proj.manutencao)} kcal/d</b></span>
+                      </div>
+                      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "auto", display: "block" }}>
+                        <line x1={padL} y1={padT} x2={padL} y2={H - padB} stroke="var(--border)" strokeWidth="1" />
+                        <line x1={padL} y1={H - padB} x2={W - padR} y2={H - padB} stroke="var(--border)" strokeWidth="1" />
+                        <polygon points={band} fill="var(--accent)" opacity="0.13" />
+                        {pesoAlvo != null && <line x1={padL} y1={Y(pesoAlvo)} x2={W - padR} y2={Y(pesoAlvo)} stroke="#dc2626" strokeWidth="1" strokeDasharray="4 3" opacity="0.7" />}
+                        <polyline points={linePts} fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+                        <text x={padL - 5} y={Y(y1) + 4} textAnchor="end" fontSize="9" fill="var(--muted)">{fmtN(y1, 1)}</text>
+                        <text x={padL - 5} y={Y(y0) + 4} textAnchor="end" fontSize="9" fill="var(--muted)">{fmtN(y0, 1)}</text>
+                        <text x={padL} y={H - padB + 16} textAnchor="start" fontSize="9" fill="var(--muted)">0</text>
+                        <text x={W - padR} y={H - padB + 16} textAnchor="end" fontSize="9" fill="var(--muted)">{dias} d</text>
+                        {pesoAlvo != null && <text x={W - padR - 2} y={Y(pesoAlvo) - 4} textAnchor="end" fontSize="9" fill="#dc2626">alvo {fmtN(pesoAlvo, 1)}</text>}
+                      </svg>
+                      <div style={{ fontSize: 10.5, color: "var(--muted)", lineHeight: 1.5, marginTop: 6 }}>
+                        Modelo dinâmico de Hall / NIH Body Weight Planner (partição de Forbes + termogênese adaptativa). Banda ≈ ±1 DP (3,8%). ⚠️ Estimativa de simulação — não é prescrição; a conduta é decisão do nutricionista.
+                      </div>
                     </div>
                   </div>
                 </div>

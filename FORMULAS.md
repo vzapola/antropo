@@ -405,6 +405,56 @@ Implementado em `data.js` como `PAL_FATORES` e `calcGET(tmb, palFator)`. A TMB b
 
 ---
 
+## 9c. Modelo dinâmico de peso (Hall / NIH Body Weight Planner)
+
+Projeção da trajetória de peso sob um dado balanço calórico. Modelo de **dois compartimentos** (massa gorda FM, massa livre de gordura FFM) com **partição de Forbes** e **termogênese adaptativa**, integrado em passo diário. Implementado em `data.js` como `projetarPeso(params)` (usa `_bwpSimular`).
+
+**Referências**:
+- Chow CC, Hall KD. The dynamics of human body weight change. *PLoS Comput Biol.* 2008;4(3):e1000045.
+- Hall KD, et al. Quantification of the effect of energy imbalance on bodyweight. *Lancet.* 2011;378(9793):826-37. (base do NIH Body Weight Planner — niddk.nih.gov/bwp)
+
+**Constantes** (`_BWP`):
+```
+ρ_F = 9440 kcal/kg   (densidade energética da gordura)
+ρ_L = 1820 kcal/kg   (densidade energética da massa livre de gordura)
+γ_L = 22 kcal/kg/dia (custo de manutenção da FFM)
+γ_F = 3,2 kcal/kg/dia (custo de manutenção da FM)
+TEF = 0,10           (efeito térmico do alimento, fração da ingestão)
+β_AT = 0,14          (coeficiente de termogênese adaptativa)
+```
+
+**Estado inicial**: FM₀ = peso·%G/100 (%G do **método adotado**); FFM₀ = peso − FM₀.
+
+**Gasto energético diário** (EE):
+```
+RMR = K + γ_L·FFM + γ_F·FM      (K calibrado para RMR(0) = TMB)
+PA  = δ·peso                     (δ calibrado para EE(0) = GET = TMB·PAL)
+TEF = 0,10·ingestão
+AT  = β_AT·(EI₀ − ingestão)      (reduz EE no déficit; EI₀ = manutenção habitual)
+EE  = RMR + PA + TEF − AT
+```
+
+**Partição de Forbes** (fração do balanço energético destinada à FFM):
+```
+p = 2 / (2 + FM)                 (FM em kg)
+ΔFFM = p·(ingestão − EE) / ρ_L
+ΔFM  = (1 − p)·(ingestão − EE) / ρ_F
+```
+
+**Mudança de atividade** (item da Projeção): `palIntervencao` recalibra δ para a atividade durante a intervenção, permitindo simular aumento/redução de atividade física.
+
+**Banda de incerteza**: ±DP ≈ 3,8% do peso projetado (valor declarado pelo NIH BWP).
+
+### ⚠️ Validação obrigatória
+Os coeficientes γ_L, γ_F, β_AT e a forma da termogênese adaptativa são valores padrão da literatura de Hall, mas **a fidelidade ao NIH BWP deve ser confirmada numericamente** rodando os mesmos inputs (sexo, idade, altura, peso, PAL, alvo, prazo) na calculadora oficial e comparando peso final e curva. Ajustar os coeficientes se divergir além da tolerância (a definir após a primeira comparação).
+
+### Comportamento validado no console (v1)
+- Ingestão = GET → peso estável (estado estacionário). ✓
+- Déficit constante → perda que **desacelera** e prevê **menos** perda que a regra ingênua de 7700 kcal/kg (adaptação metabólica). ✓
+- Modo "alvo" resolve a ingestão diária que atinge o peso-alvo no prazo (bisseção). ✓
+
+---
+
 ## 10. Casos de validação para testes
 
 Os casos abaixo são extraídos da literatura ou construídos a partir dos exemplos das publicações originais. Tolerâncias: densidade ±0.001; %G ±0.5 pontos; IMC ±0.1.
