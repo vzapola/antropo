@@ -126,17 +126,17 @@
   /* Drawer */
   .drawer-overlay { position: fixed; inset: 0; z-index: 300; display: flex; justify-content: flex-end; }
   .drawer-backdrop { flex: 1; background: rgba(0,0,0,0.30); backdrop-filter: blur(2px); }
-  .drawer { width: 400px; background: var(--surface); display: flex; flex-direction: column; box-shadow: -6px 0 40px rgba(0,0,0,0.14); }
+  .drawer { width: min(400px, 100vw); background: var(--surface); display: flex; flex-direction: column; box-shadow: -6px 0 40px rgba(0,0,0,0.14); }
 </style>
 </head>
 <body>
 <div id="root"></div>
 
-<script src="data.js?v=14"></script>
-<script type="text/babel" src="components_v2.jsx?v=14"></script>
-<script type="text/babel" src="AnatomyFigure.jsx?v=14"></script>
-<script type="text/babel" src="PatientPanel.jsx?v=14"></script>
-<script type="text/babel" src="PatientView.jsx?v=14"></script>
+<script src="data.js?v=16"></script>
+<script type="text/babel" src="components_v2.jsx?v=16"></script>
+<script type="text/babel" src="AnatomyFigure.jsx?v=16"></script>
+<script type="text/babel" src="PatientPanel.jsx?v=16"></script>
+<script type="text/babel" src="PatientView.jsx?v=16"></script>
 
 <script type="text/babel">
 
@@ -169,6 +169,96 @@ const PatientDrawer = ({ onClose, onSave, initial }) => {
         <div style={{ padding: "14px 22px", borderTop: "1px solid var(--border)", display: "flex", gap: 8, justifyContent: "flex-end", flexShrink: 0 }}>
           <Btn variant="secondary" onClick={onClose}>Cancelar</Btn>
           <Btn onClick={() => { onSave(form); onClose(); }} disabled={!form.nome || !form.nascimento}>Salvar paciente</Btn>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ---- Drawer: configurações do sistema (tema + identidade profissional) ----
+const CONFIG_DEFAULT = { tema: "A", nome: "", crn: "", logo: "" };
+
+const ConfigDrawer = ({ config, onSave, onClose }) => {
+  const [form, setForm] = React.useState({ ...CONFIG_DEFAULT, ...config });
+  const fileRef = React.useRef(null);
+  const set = k => v => setForm(p => ({ ...p, [k]: v }));
+
+  // Reduz o logo para no máximo 320px de largura antes de salvar — o localStorage
+  // é compartilhado com os dados dos pacientes e tem cota limitada.
+  const handleLogo = (e) => {
+    const f = e.target.files && e.target.files[0];
+    e.target.value = "";
+    if (!f) return;
+    if (!f.type.startsWith("image/")) { alert("Selecione um arquivo de imagem."); return; }
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, 320 / img.width);
+        const c = document.createElement("canvas");
+        c.width = Math.max(1, Math.round(img.width * scale));
+        c.height = Math.max(1, Math.round(img.height * scale));
+        c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+        setForm(p => ({ ...p, logo: c.toDataURL("image/png") }));
+      };
+      img.onerror = () => alert("Não foi possível ler a imagem.");
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(f);
+  };
+
+  return (
+    <div className="drawer-overlay">
+      <div className="drawer-backdrop" onClick={onClose} />
+      <div className="drawer">
+        <div style={{ padding: "18px 22px 14px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 }}>
+          <span style={{ fontWeight: 700, fontSize: 16 }}>Configurações</span>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted)", fontSize: 22, lineHeight: 1 }}>×</button>
+        </div>
+        <div style={{ flex: 1, overflowY: "auto", padding: "20px 22px", display: "flex", flexDirection: "column", gap: 20 }}>
+          {/* Tema */}
+          <div>
+            <div className="tw-label">Tema do sistema</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {Object.entries(THEMES_V2).map(([k, t]) => (
+                <label key={k} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", border: `1px solid ${form.tema === k ? "var(--accent)" : "var(--border)"}`, borderRadius: 8, cursor: "pointer", background: form.tema === k ? "var(--accent-light)" : "var(--surface)" }}>
+                  <input type="radio" name="temaSel" checked={form.tema === k} onChange={() => set("tema")(k)} style={{ accentColor: "var(--accent)", cursor: "pointer" }} />
+                  <span style={{ display: "flex", gap: 4 }}>
+                    {[t.topbar, t.accent, t.bg, t.surface].map((c, i) => (
+                      <span key={i} style={{ width: 16, height: 16, borderRadius: 4, background: c, border: "1px solid rgba(128,128,128,0.35)" }} />
+                    ))}
+                  </span>
+                  <span style={{ fontSize: 13, fontWeight: 600 }}>{t.name}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+          {/* Identidade profissional */}
+          <div style={{ borderTop: "1px solid var(--border)", paddingTop: 16 }}>
+            <div className="tw-label">Identidade profissional</div>
+            <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 12, lineHeight: 1.5 }}>Aparece no rodapé do relatório em PDF.</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              <Field label="Nome" value={form.nome || ""} onChange={set("nome")} placeholder="Ex.: Ana Silva" />
+              <Field label="CRN" value={form.crn || ""} onChange={set("crn")} placeholder="Ex.: CRN-3 12345" />
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: "var(--muted)", marginBottom: 6 }}>Logo</div>
+                {form.logo ? (
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                    <img src={form.logo} alt="Logo" style={{ maxWidth: 120, maxHeight: 60, objectFit: "contain", border: "1px solid var(--border)", borderRadius: 6, background: "#fff", padding: 4 }} />
+                    <Btn variant="danger" small onClick={() => set("logo")("")}>Remover</Btn>
+                  </div>
+                ) : (
+                  <Btn variant="secondary" small onClick={() => fileRef.current && fileRef.current.click()}>Escolher imagem…</Btn>
+                )}
+                <input ref={fileRef} type="file" accept="image/*" onChange={handleLogo} style={{ display: "none" }} />
+                <div style={{ fontSize: 10.5, color: "var(--muted)", marginTop: 6, lineHeight: 1.5 }}>A imagem é reduzida para no máximo 320px e salva localmente no navegador.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div style={{ padding: "14px 22px", borderTop: "1px solid var(--border)", display: "flex", gap: 8, justifyContent: "flex-end", flexShrink: 0 }}>
+          <Btn variant="secondary" onClick={onClose}>Cancelar</Btn>
+          <Btn onClick={() => { onSave(form); onClose(); }}>Salvar</Btn>
         </div>
       </div>
     </div>
@@ -227,14 +317,19 @@ const App = () => {
   const [tweaks,     setTweaks]     = React.useState(TWEAK_DEFAULTS);
   const [tweaksOpen, setTweaksOpen] = React.useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = React.useState(false);
+  const [config,     setConfig]     = React.useState(() => ({ ...CONFIG_DEFAULT, ...lsGet("antropo_config", {}) }));
+  const [showConfig, setShowConfig] = React.useState(false);
 
   // ── Persistência automática ───────────────────────────────────────
   React.useEffect(() => { lsSet("antropo_patients",   patients);   }, [patients]);
   React.useEffect(() => { lsSet("antropo_avaliacoes", avaliacoes); }, [avaliacoes]);
   React.useEffect(() => { lsSet("antropo_v2", { pid: selected?.id }); }, [selected]);
 
-  // Theme
-  React.useEffect(() => { applyTheme("A"); }, []);
+  // Tema + persistência das configurações
+  React.useEffect(() => {
+    applyTheme(config.tema || "A");
+    lsSet("antropo_config", config);
+  }, [config]);
 
   // Tweaks host
   React.useEffect(() => {
@@ -390,6 +485,13 @@ const App = () => {
         }}>⬆ Restaurar</button>
         <input ref={backupInputRef} type="file" accept="application/json,.json" onChange={handleImportBackup} style={{ display: "none" }} />
 
+        <button onClick={() => setShowConfig(true)} title="Configurações (tema, nome, CRN, logo)" style={{
+          background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.10)",
+          borderRadius: 6, width: 32, height: 32, cursor: "pointer",
+          color: "var(--topbar-text)", fontSize: 15, fontFamily: "inherit",
+          display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+        }}>⚙</button>
+
         <button onClick={() => setShowDrawer(true)} style={{
           background: "var(--accent)", color: "var(--accent-text)",
           border: "none", borderRadius: 6, padding: "6px 14px",
@@ -425,10 +527,18 @@ const App = () => {
               avaliacoes={avaliacoes}
               onSave={handleSaveAv}
               onDeleteAv={handleDeleteAv}
+              config={config}
             />
           : <CentralEmpty onNewPatient={() => setShowDrawer(true)} />
         }
       </div>
+
+      {/* Drawer de configurações */}
+      {showConfig && <ConfigDrawer
+        config={config}
+        onSave={setConfig}
+        onClose={() => setShowConfig(false)}
+      />}
 
       {/* Drawer cadastro/edição */}
       {showDrawer && <PatientDrawer

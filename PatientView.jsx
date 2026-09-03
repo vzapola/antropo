@@ -864,7 +864,7 @@ const REPORT_SECTIONS = [
   { key: 'medidasBrutas', label: 'Medidas brutas + Σ8 dobras' },
 ];
 
-const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, texts = DEFAULT_REPORT_TEXTS, editMode = false, onTextChange = () => {}, aiSummary = '', sections = {} }) => {
+const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, texts = DEFAULT_REPORT_TEXTS, editMode = false, onTextChange = () => {}, aiSummary = '', sections = {}, config = {} }) => {
   if (!avs.length) return null;
   const showSec = (k) => sections[k] !== false;
 
@@ -1140,7 +1140,7 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, tex
             {protoLabel}{avs.length > 1 ? ` · ${_fmtData(firstAv.data)} → ${_fmtData(lastAv.data)} (${avs.length} avaliações)` : ` · ${_fmtData(lastAv.data)}`}
           </div>
           <div style={{ fontSize:9, color:'#555', marginTop:6 }}>
-            Emitido em {new Date().toLocaleDateString("pt-BR", { day:"2-digit", month:"long", year:"numeric" })} · Avaliação Antropométrica por Vinicius Zapola
+            Emitido em {new Date().toLocaleDateString("pt-BR", { day:"2-digit", month:"long", year:"numeric" })} · Avaliação Antropométrica
           </div>
         </div>
         {/* 4 cards abaixo do nome */}
@@ -1573,12 +1573,25 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, tex
         }
       </div>
 
+      {/* ══════════════════════════════════════════════════════════════
+          Rodapé — identidade profissional (configurável em Configurações)
+      ══════════════════════════════════════════════════════════════ */}
+      {(config.nome || config.crn || config.logo) && (
+        <div style={{ marginTop:12, paddingTop:10, borderTop:'1px solid #e5e5e5', display:'flex', alignItems:'center', gap:12, breakInside:'avoid' }}>
+          {config.logo && <img src={config.logo} alt="" style={{ maxHeight:38, maxWidth:120, objectFit:'contain', flexShrink:0 }} />}
+          <div style={{ fontSize:9.5, color:'#666', lineHeight:1.5 }}>
+            {config.nome && <div style={{ fontWeight:700, color:'#333', fontSize:10.5 }}>{config.nome}</div>}
+            {config.crn && <div>{config.crn}</div>}
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };
 
 // ---- Modal de pré-visualização e edição do relatório ----
-const PrintPreviewModal = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, texts, onTextsChange, sections = {}, onSectionsChange = () => {}, onClose, onPrint, aiSummary = '' }) => {
+const PrintPreviewModal = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, texts, onTextsChange, sections = {}, onSectionsChange = () => {}, config = {}, onClose, onPrint, aiSummary = '' }) => {
   const [draft, setDraft] = React.useState({ ...texts });
   const [draftSections, setDraftSections] = React.useState({ ...sections });
   const updateText = (key, val) => setDraft(p => ({ ...p, [key]: val }));
@@ -1632,6 +1645,7 @@ const PrintPreviewModal = ({ patient, avs, protoRef, protoLabel, idade, getProto
             idade={idade} getProtoG={getProtoG}
             texts={draft} editMode={true} onTextChange={updateText}
             sections={draftSections}
+            config={config}
             aiSummary={aiSummary}
           />
         </div>
@@ -1761,7 +1775,7 @@ const BodyDiagram = ({ sexo = 'M' }) => {
   );
 };
 
-const HistoricoTab = ({ patient, avaliacoes, protoRef }) => {
+const HistoricoTab = ({ patient, avaliacoes, protoRef, config = {} }) => {
   const avs = avaliacoes.filter(a => a.paciente_id === patient.id).sort((a,b) => a.data.localeCompare(b.data));
   const idade = calcIdade(patient.nascimento);
 
@@ -2029,7 +2043,7 @@ const HistoricoTab = ({ patient, avaliacoes, protoRef }) => {
 
       {/* Relatório impresso — orientado ao paciente */}
       <div className="print-only" style={{ display: "none" }}>
-        <PrintReport patient={patient} avs={avs} protoRef={protoRef} protoLabel={protoLabel} idade={idade} getProtoG={getProtoG} texts={reportTexts} sections={reportSections} aiSummary={aiSummary||''} />
+        <PrintReport patient={patient} avs={avs} protoRef={protoRef} protoLabel={protoLabel} idade={idade} getProtoG={getProtoG} texts={reportTexts} sections={reportSections} config={config} aiSummary={aiSummary||''} />
       </div>
 
       {/* Modal de pré-visualização */}
@@ -2041,6 +2055,7 @@ const HistoricoTab = ({ patient, avaliacoes, protoRef }) => {
           onTextsChange={setReportTexts}
           sections={reportSections}
           onSectionsChange={setReportSections}
+          config={config}
           aiSummary={aiSummary||''}
           onClose={() => setPreviewOpen(false)}
           onPrint={() => { setPreviewOpen(false); setTimeout(() => window.print(), 60); }}
@@ -2379,7 +2394,7 @@ const HistoricoTab = ({ patient, avaliacoes, protoRef }) => {
 };
 
 // ---- PatientView: container com tabs principais ----
-const PatientView = ({ patient, avaliacoes, onSave, onDeleteAv }) => {
+const PatientView = ({ patient, avaliacoes, onSave, onDeleteAv, config = {} }) => {
   const [activeAv, setActiveAv] = React.useState(null);
   const [isNewAv, setIsNewAv]   = React.useState(false);
   const idade   = calcIdade(patient.nascimento);
@@ -2458,7 +2473,7 @@ const PatientView = ({ patient, avaliacoes, onSave, onDeleteAv }) => {
             protoRef={protoRef} />
         )}
         {mainTab === "historico" && (
-          <HistoricoTab patient={patient} avaliacoes={avaliacoes} protoRef={protoRef} />
+          <HistoricoTab patient={patient} avaliacoes={avaliacoes} protoRef={protoRef} config={config} />
         )}
         {mainTab === "form" && (() => {
           window._patientAvaliacoes = avaliacoes;
