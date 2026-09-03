@@ -132,11 +132,11 @@
 <body>
 <div id="root"></div>
 
-<script src="data.js?v=16"></script>
-<script type="text/babel" src="components_v2.jsx?v=16"></script>
-<script type="text/babel" src="AnatomyFigure.jsx?v=16"></script>
-<script type="text/babel" src="PatientPanel.jsx?v=16"></script>
-<script type="text/babel" src="PatientView.jsx?v=16"></script>
+<script src="data.js?v=17"></script>
+<script type="text/babel" src="components_v2.jsx?v=17"></script>
+<script type="text/babel" src="AnatomyFigure.jsx?v=17"></script>
+<script type="text/babel" src="PatientPanel.jsx?v=17"></script>
+<script type="text/babel" src="PatientView.jsx?v=17"></script>
 
 <script type="text/babel">
 
@@ -178,7 +178,7 @@ const PatientDrawer = ({ onClose, onSave, initial }) => {
 // ---- Drawer: configurações do sistema (tema + identidade profissional) ----
 const CONFIG_DEFAULT = { tema: "A", nome: "", crn: "", logo: "" };
 
-const ConfigDrawer = ({ config, onSave, onClose }) => {
+const ConfigDrawer = ({ config, onSave, onClose, onExportBackup, onImportBackup }) => {
   const [form, setForm] = React.useState({ ...CONFIG_DEFAULT, ...config });
   const fileRef = React.useRef(null);
   const set = k => v => setForm(p => ({ ...p, [k]: v }));
@@ -255,6 +255,15 @@ const ConfigDrawer = ({ config, onSave, onClose }) => {
               </div>
             </div>
           </div>
+          {/* Dados / backup */}
+          <div style={{ borderTop: "1px solid var(--border)", paddingTop: 16 }}>
+            <div className="tw-label">Dados</div>
+            <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 10, lineHeight: 1.5 }}>Backup completo dos pacientes e avaliações (arquivo .json). Guarde em local seguro.</div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <Btn variant="secondary" small onClick={onExportBackup}>⬇ Exportar backup</Btn>
+              <Btn variant="secondary" small onClick={onImportBackup}>⬆ Restaurar backup</Btn>
+            </div>
+          </div>
         </div>
         <div style={{ padding: "14px 22px", borderTop: "1px solid var(--border)", display: "flex", gap: 8, justifyContent: "flex-end", flexShrink: 0 }}>
           <Btn variant="secondary" onClick={onClose}>Cancelar</Btn>
@@ -319,6 +328,10 @@ const App = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = React.useState(false);
   const [config,     setConfig]     = React.useState(() => ({ ...CONFIG_DEFAULT, ...lsGet("antropo_config", {}) }));
   const [showConfig, setShowConfig] = React.useState(false);
+  const isMobile = useIsMobile();
+  // No mobile o painel de pacientes vira overlay — começa fechado para o
+  // conteúdo do paciente ocupar a tela inteira.
+  React.useEffect(() => { if (isMobile) setSidebarCollapsed(true); }, [isMobile]);
 
   // ── Persistência automática ───────────────────────────────────────
   React.useEffect(() => { lsSet("antropo_patients",   patients);   }, [patients]);
@@ -452,7 +465,7 @@ const App = () => {
       {/* TOP BAR */}
       <header id="top-bar" style={{
         height: 50, background: "var(--topbar)", flexShrink: 0,
-        display: "flex", alignItems: "center", padding: "0 20px", gap: 14,
+        display: "flex", alignItems: "center", padding: isMobile ? "0 10px" : "0 20px", gap: isMobile ? 8 : 14,
         borderBottom: "1px solid rgba(255,255,255,0.05)",
       }}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
@@ -470,19 +483,23 @@ const App = () => {
           {sidebarCollapsed ? "▶" : "◀"}
         </button>        <div style={{ flex: 1 }} />
 
-        {/* Backup: exportar / restaurar */}
-        <button onClick={handleExportBackup} title="Exportar backup dos dados (JSON)" style={{
-          background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.10)",
-          borderRadius: 6, height: 32, padding: "0 12px", cursor: "pointer",
-          color: "var(--topbar-text)", fontSize: 12.5, fontWeight: 600, fontFamily: "inherit",
-          display: "inline-flex", alignItems: "center", gap: 6, flexShrink: 0,
-        }}>⬇ Backup</button>
-        <button onClick={() => backupInputRef.current && backupInputRef.current.click()} title="Restaurar backup a partir de um arquivo .json" style={{
-          background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.10)",
-          borderRadius: 6, height: 32, padding: "0 12px", cursor: "pointer",
-          color: "var(--topbar-text)", fontSize: 12.5, fontWeight: 600, fontFamily: "inherit",
-          display: "inline-flex", alignItems: "center", gap: 6, flexShrink: 0,
-        }}>⬆ Restaurar</button>
+        {/* Backup: exportar / restaurar — no mobile ficam dentro de Configurações */}
+        {!isMobile && (
+          <React.Fragment>
+            <button onClick={handleExportBackup} title="Exportar backup dos dados (JSON)" style={{
+              background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.10)",
+              borderRadius: 6, height: 32, padding: "0 12px", cursor: "pointer",
+              color: "var(--topbar-text)", fontSize: 12.5, fontWeight: 600, fontFamily: "inherit",
+              display: "inline-flex", alignItems: "center", gap: 6, flexShrink: 0,
+            }}>⬇ Backup</button>
+            <button onClick={() => backupInputRef.current && backupInputRef.current.click()} title="Restaurar backup a partir de um arquivo .json" style={{
+              background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.10)",
+              borderRadius: 6, height: 32, padding: "0 12px", cursor: "pointer",
+              color: "var(--topbar-text)", fontSize: 12.5, fontWeight: 600, fontFamily: "inherit",
+              display: "inline-flex", alignItems: "center", gap: 6, flexShrink: 0,
+            }}>⬆ Restaurar</button>
+          </React.Fragment>
+        )}
         <input ref={backupInputRef} type="file" accept="application/json,.json" onChange={handleImportBackup} style={{ display: "none" }} />
 
         <button onClick={() => setShowConfig(true)} title="Configurações (tema, nome, CRN, logo)" style={{
@@ -494,30 +511,52 @@ const App = () => {
 
         <button onClick={() => setShowDrawer(true)} style={{
           background: "var(--accent)", color: "var(--accent-text)",
-          border: "none", borderRadius: 6, padding: "6px 14px",
+          border: "none", borderRadius: 6, padding: isMobile ? "6px 10px" : "6px 14px",
           fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
-        }}>+ Novo paciente</button>
+          whiteSpace: "nowrap", flexShrink: 0,
+        }}>{isMobile ? "+ Novo" : "+ Novo paciente"}</button>
       </header>
 
       {/* BODY: painel duplo */}
       <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
 
-        {/* Painel esquerdo — lista de pacientes */}
-        <div id="patient-panel" style={{
-          width: sidebarCollapsed ? 0 : 288,
-          overflow: "hidden",
-          flexShrink: 0,
-          transition: "width 0.22s cubic-bezier(0.4,0,0.2,1)",
-        }}>
-          {!sidebarCollapsed && <PatientPanel
-            patients={patients}
-            avaliacoes={avaliacoes}
-            selectedId={selected?.id}
-            onSelect={setSelected}
-            onEdit={p => { setEditPatient(p); setShowDrawer(true); }}
-            onDelete={handleDeletePatient}
-          />}
-        </div>
+        {/* Painel esquerdo — lista de pacientes (overlay no mobile) */}
+        {isMobile ? (
+          !sidebarCollapsed && (
+            <div style={{ position: "fixed", top: 50, left: 0, right: 0, bottom: 0, zIndex: 250, display: "flex" }}>
+              <div id="patient-panel" style={{
+                width: "min(300px, 84vw)", flexShrink: 0, background: "var(--list-bg)",
+                boxShadow: "4px 0 28px rgba(0,0,0,0.28)", display: "flex", flexDirection: "column", overflow: "hidden",
+              }}>
+                <PatientPanel
+                  patients={patients}
+                  avaliacoes={avaliacoes}
+                  selectedId={selected?.id}
+                  onSelect={p => { setSelected(p); setSidebarCollapsed(true); }}
+                  onEdit={p => { setEditPatient(p); setShowDrawer(true); setSidebarCollapsed(true); }}
+                  onDelete={handleDeletePatient}
+                />
+              </div>
+              <div onClick={() => setSidebarCollapsed(true)} style={{ flex: 1, background: "rgba(0,0,0,0.40)" }} />
+            </div>
+          )
+        ) : (
+          <div id="patient-panel" style={{
+            width: sidebarCollapsed ? 0 : 288,
+            overflow: "hidden",
+            flexShrink: 0,
+            transition: "width 0.22s cubic-bezier(0.4,0,0.2,1)",
+          }}>
+            {!sidebarCollapsed && <PatientPanel
+              patients={patients}
+              avaliacoes={avaliacoes}
+              selectedId={selected?.id}
+              onSelect={setSelected}
+              onEdit={p => { setEditPatient(p); setShowDrawer(true); }}
+              onDelete={handleDeletePatient}
+            />}
+          </div>
+        )}
 
         {/* Painel direito — conteúdo do paciente */}
         {selected
@@ -538,6 +577,8 @@ const App = () => {
         config={config}
         onSave={setConfig}
         onClose={() => setShowConfig(false)}
+        onExportBackup={handleExportBackup}
+        onImportBackup={() => backupInputRef.current && backupInputRef.current.click()}
       />}
 
       {/* Drawer cadastro/edição */}

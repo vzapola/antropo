@@ -46,6 +46,26 @@ const applyTheme = (key) => {
   r.setProperty("--accent-text",  t.accentText);
 };
 
+// ===== BREAKPOINT MOBILE =====
+// Ponto único de corte do sistema. Usa matchMedia para reagir a resize/rotação.
+const MOBILE_BP = 820;
+const useIsMobile = (bp = MOBILE_BP) => {
+  const query = `(max-width: ${bp}px)`;
+  const [is, setIs] = React.useState(() => window.matchMedia(query).matches);
+  React.useEffect(() => {
+    const m = window.matchMedia(query);
+    const onChange = e => setIs(e.matches);
+    setIs(m.matches);
+    if (m.addEventListener) m.addEventListener("change", onChange);
+    else m.addListener(onChange);
+    return () => {
+      if (m.removeEventListener) m.removeEventListener("change", onChange);
+      else m.removeListener(onChange);
+    };
+  }, [query]);
+  return is;
+};
+
 // ===== BADGE =====
 const TAG_COLORS = {
   green:  { bg: "#DCFCE7", text: "#166534" },
@@ -231,5 +251,5 @@ const _fmtData = (s) => s ? s.split("-").reverse().join("/") : "—";
 
 Object.assign(window, {
   THEMES_V2, applyTheme, Badge, Avatar, TopBar, Btn, Card, Field, Select, fmtN, Empty, InfoTip,
-  TAG_COLORS, _fmtData,
+  TAG_COLORS, _fmtData, useIsMobile, MOBILE_BP,
 });

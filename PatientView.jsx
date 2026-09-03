@@ -224,6 +224,7 @@ const TableSection = ({ title, rows }) => (
 const AvaliacaoFormTab = ({ patient, avaliacao: initialAv, isNew, onSave, protoRef, onProtoChange }) => {
   const idade = calcIdade(patient.nascimento);
   const sexo = patient.sexo;
+  const isMobile = useIsMobile();
   const [subTab, setSubTab] = React.useState(0);
   const [focusedKey, setFocusedKey] = React.useState(null);
   const [tmbBase, setTmbBase] = React.useState("mifflin");
@@ -291,7 +292,7 @@ const AvaliacaoFormTab = ({ patient, avaliacao: initialAv, isNew, onSave, protoR
 
         {/* DOBRAS */}
         {subTab === 1 && (
-          <div style={{ padding: "20px 24px", display: "grid", gridTemplateColumns: "1fr 320px", gap: 16, alignItems: "start" }}>
+          <div style={{ padding: isMobile ? "16px 14px" : "20px 24px", display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 320px", gap: 16, alignItems: "start" }}>
             <div>
               {(() => {
                 const prevAvs = (window._patientAvaliacoes || []).filter(a => a.paciente_id === patient.id && (!form._id || a.id !== form._id)).sort((a,b) => b.data.localeCompare(a.data));
@@ -311,7 +312,7 @@ const AvaliacaoFormTab = ({ patient, avaliacao: initialAv, isNew, onSave, protoR
                   </div>
                 );
               })()}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "1fr 1fr 1fr", gap: 12 }}>
                 {DOBRAS_LIST.map(d => (
                   <div key={d.key} onMouseDown={e => { e.stopPropagation(); setFocusedKey(d.key); }} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
@@ -322,9 +323,9 @@ const AvaliacaoFormTab = ({ patient, avaliacao: initialAv, isNew, onSave, protoR
                       <InfoTip text={d.tip} />
                     </div>
                     <div style={{ position: "relative" }}>
-                      <input type="number" value={form.dobras[d.key] ?? ""} placeholder="0"
+                      <input type="number" inputMode="decimal" value={form.dobras[d.key] ?? ""} placeholder="0"
                         onChange={e => setD(d.key)(e.target.value)}
-                        style={{ width: "100%", padding: "8px 36px 8px 10px", borderRadius: 6, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)", fontSize: 13.5, fontFamily: "inherit", outline: "none", boxSizing: "border-box" }}
+                        style={{ width: "100%", padding: isMobile ? "12px 38px 12px 12px" : "8px 36px 8px 10px", borderRadius: 6, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)", fontSize: isMobile ? 16 : 13.5, fontFamily: "inherit", outline: "none", boxSizing: "border-box" }}
                         onFocus={e => { setFocusedKey(d.key); e.target.style.borderColor = "var(--accent)"; e.target.style.boxShadow = "0 0 0 2px var(--accent-light)"; }}
                         onBlur={e => { e.target.style.borderColor = "var(--border)"; e.target.style.boxShadow = "none"; }}
                       />
@@ -362,7 +363,7 @@ const AvaliacaoFormTab = ({ patient, avaliacao: initialAv, isNew, onSave, protoR
 
         {/* CIRCUNFERÊNCIAS */}
         {subTab === 2 && (
-          <div style={{ padding: "20px 24px", display: "grid", gridTemplateColumns: "1fr 320px", gap: 16, alignItems: "start" }}>
+          <div style={{ padding: isMobile ? "16px 14px" : "20px 24px", display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 320px", gap: 16, alignItems: "start" }}>
             <div>
               {(() => {
                 const prevAvs = (window._patientAvaliacoes || []).filter(a => a.paciente_id === patient.id && (!form._id || a.id !== form._id)).sort((a,b) => b.data.localeCompare(a.data));
@@ -393,9 +394,9 @@ const AvaliacaoFormTab = ({ patient, avaliacao: initialAv, isNew, onSave, protoR
                       <InfoTip text={c.tip} />
                     </div>
                     <div style={{ position: "relative" }}>
-                      <input type="number" value={form.circs[c.key] ?? ""} placeholder="0"
+                      <input type="number" inputMode="decimal" value={form.circs[c.key] ?? ""} placeholder="0"
                         onChange={e => setC(c.key)(e.target.value)}
-                        style={{ width: "100%", padding: "8px 36px 8px 10px", borderRadius: 6, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)", fontSize: 13.5, fontFamily: "inherit", outline: "none", boxSizing: "border-box" }}
+                        style={{ width: "100%", padding: isMobile ? "12px 38px 12px 12px" : "8px 36px 8px 10px", borderRadius: 6, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)", fontSize: isMobile ? 16 : 13.5, fontFamily: "inherit", outline: "none", boxSizing: "border-box" }}
                         onFocus={e => { setFocusedKey(c.key); e.target.style.borderColor = "var(--accent)"; e.target.style.boxShadow = "0 0 0 2px var(--accent-light)"; }}
                         onBlur={e => { e.target.style.borderColor = "var(--border)"; e.target.style.boxShadow = "none"; }}
                       />
@@ -684,7 +685,7 @@ const AvaliacaoFormTab = ({ patient, avaliacao: initialAv, isNew, onSave, protoR
               const band = pts.map(s => `${X(s.dia).toFixed(1)},${Y(s.peso + sdAt(s.dia)).toFixed(1)}`)
                 .concat(pts.slice().reverse().map(s => `${X(s.dia).toFixed(1)},${Y(s.peso - sdAt(s.dia)).toFixed(1)}`)).join(" ");
               return (
-                <div style={{ display: "grid", gridTemplateColumns: "300px 1fr", gap: 18, alignItems: "start" }}>
+                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "300px 1fr", gap: 18, alignItems: "start" }}>
                   <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                     <div style={{ background: "var(--accent-light)", border: "1px solid var(--border)", borderRadius: 10, padding: "12px 14px" }}>
                       <div style={{ fontSize: 10, fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>Dados de partida</div>
@@ -725,7 +726,7 @@ const AvaliacaoFormTab = ({ patient, avaliacao: initialAv, isNew, onSave, protoR
                         ⚠️ Ingestão estimada ({fmtKcal(proj.ingestao)} kcal/d) abaixo do mínimo de segurança ({minSeg} kcal/d). Reveja prazo/alvo — decisão clínica do nutricionista.
                       </div>
                     )}
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10 }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10 }}>
                       {[
                         { l: "Peso projetado", v: `${fmtN(proj.pesoFinal, 1)} kg`, s: `± ${fmtN(proj.sdKg, 1)} kg (DP ~3,8%)`, hi: true },
                         { l: "% Gordura projetado", v: `${fmtN(proj.pctGFinal, 1)}%`, s: `inicial ${fmtN(pctGAd, 1)}%` },
