@@ -785,13 +785,11 @@ const EvoLinePR = ({ v0, vN, unit='', dec=1, lowerIsBetter=false, isSingle=false
   if (isSingle) return null;
   if (v0==null||vN==null||isNaN(v0)||isNaN(vN)) return null;
   const d=vN-v0, isNeutral=Math.abs(d)<0.01;
-  const isGood=isNeutral?true:(lowerIsBetter?d<0:d>0);
-  const color=isNeutral?'#888':(isGood?'#16a34a':'#dc2626');
+  const color=isNeutral?'#888':'#475569';   // neutro — sem juízo de bom/ruim
   return (
-    <div style={{ fontSize:10, color, fontWeight:600, marginBottom:5, display:'flex', alignItems:'center', gap:4 }}>
-      <span>{isNeutral?'→':d>0?'↑':'↓'}</span>
-      <span>{_nPR(v0,dec)} {unit} → {_nPR(vN,dec)} {unit}</span>
-      <span style={{ color:'#bbb', fontWeight:400 }}>({d>0?'+':''}{_nPR(d,dec)} {unit} desde o início)</span>
+    <div style={{ fontSize:10, color, fontWeight:600, marginBottom:5, display:'flex', alignItems:'center', gap:4, flexWrap:'wrap' }}>
+      <span style={{ whiteSpace:'nowrap' }}>{isNeutral?'→':d>0?'↑':'↓'} {_nPR(v0,dec)} {unit} → {_nPR(vN,dec)} {unit}</span>
+      <span style={{ color:'#bbb', fontWeight:400, whiteSpace:'nowrap' }}>({d>0?'+':''}{_nPR(d,dec)} {unit} desde o início)</span>
     </div>
   );
 };
@@ -860,6 +858,7 @@ const REPORT_SECTIONS = [
   { key: 'dashboard',     label: 'Dashboard de evolução' },
   { key: 'mapeamento',    label: 'Mapeamento corporal' },
   { key: 'indicadores',   label: 'Indicadores de saúde (RCQ/RCE)' },
+  { key: 'energia',       label: 'Gasto energético (TMB/GET)' },
   { key: 'historico',     label: 'Histórico de avaliações' },
   { key: 'interpretacao', label: 'Guia de interpretação' },
   { key: 'medidasBrutas', label: 'Medidas brutas + Σ8 dobras' },
@@ -873,10 +872,17 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, tex
   const n = (v, d=1) => v != null && !isNaN(v) ? Number(v).toFixed(d).replace('.',',') : '—';
 
   const firstAv = avs[0], lastAv = avs[avs.length - 1];
+  // No PDF, tabelas por avaliação mostram as últimas 10 (evita quebrar a impressão).
+  // A aba Histórico do painel continua mostrando a evolução completa.
+  const MAX_TAB = 10;
+  const avsRel = avs.length > MAX_TAB ? avs.slice(-MAX_TAB) : avs;
+  const avsTrunc = avs.length > MAX_TAB;
   const rN = calcularTudo(lastAv.peso, lastAv.altura, patient.sexo, idade, lastAv.dobras, lastAv.circs);
   const gN = getProtoG(lastAv);
   const mgN = gN != null ? lastAv.peso * gN / 100 : null;
   const mlgN = mgN != null ? lastAv.peso - mgN : null;
+  const palLast = resolvePAL(lastAv.atividade);
+  const getLast = calcGET(rN.mifflin, palLast.fator);
 
   const prevAv = avs.length >= 2 ? avs[avs.length - 2] : null;
   const rPrev = prevAv ? calcularTudo(prevAv.peso, prevAv.altura, patient.sexo, idade, prevAv.dobras, prevAv.circs) : null;
@@ -911,8 +917,7 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, tex
     if (vs.length < 2) return <span style={{ color:'#ccc', fontSize:9 }}>—</span>;
     const mn = Math.min(...vs), mx = Math.max(...vs), rng = mx - mn || 1;
     const pts = vs.map((v, i) => `${(i / (vs.length - 1)) * 56 + 2},${16 - ((v - mn) / rng) * 12}`).join(' ');
-    const trend = vs[vs.length - 1] - vs[0];
-    const col = Math.abs(trend) < 0.1 ? '#888' : ((lowerIsBetter && trend < 0) || (!lowerIsBetter && trend > 0)) ? '#16a34a' : '#dc2626';
+    const col = '#64748b';   // neutro — a cor não deve sugerir bom/ruim
     return (
       <svg width={60} height={18} viewBox="0 0 60 18">
         <polyline points={pts} fill="none" stroke={col} strokeWidth={1.2} strokeLinejoin="round"/>
@@ -1053,8 +1058,7 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, tex
     const d = vN - vP;
     if (Math.abs(d) < 0.01) return <span style={{ fontSize:10, color:'#888' }}>= sem variação</span>;
     const pct = vP !== 0 ? ((d / vP) * 100) : 0;
-    const good = (lowerIsBetter && d < 0) || (!lowerIsBetter && d > 0);
-    const col = good ? '#16a34a' : '#dc2626';
+    const col = '#475569';   // neutro — sem juízo de bom/ruim
     const arrow = d > 0 ? '▲' : '▼';
     return (
       <span style={{ fontSize:10, color:col, fontWeight:600 }}>
@@ -1098,19 +1102,21 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, tex
   ];
 
   const dobrasRows = dobrasDefs.reduce((acc, d) => {
-    const vals = avs.map(av => av.dobras?.[d.key] ?? null);
-    if (vals.every(v => v == null)) return acc;
+    const vals = avsRel.map(av => av.dobras?.[d.key] ?? null);   // colunas: últimas 10
+    const allVals = avs.map(av => av.dobras?.[d.key] ?? null);   // p/ Var.Total desde a 1ª real
+    if (allVals.every(v => v == null)) return acc;
     const vL = vals[vals.length - 1], vP = vals.length >= 2 ? vals[vals.length - 2] : null;
-    const vFirst = vals.find(v => v != null);
+    const vFirst = allVals.find(v => v != null);
     acc.push({ ...d, vals, delta: vL != null && vP != null ? vL - vP : null, varTotal: vL != null && vFirst != null ? vL - vFirst : null });
     return acc;
   }, []);
 
   const circsRows = circsDefs.reduce((acc, c) => {
-    const vals = avs.map(av => av.circs?.[c.key] ?? null);
-    if (vals.every(v => v == null)) return acc;
+    const vals = avsRel.map(av => av.circs?.[c.key] ?? null);
+    const allVals = avs.map(av => av.circs?.[c.key] ?? null);
+    if (allVals.every(v => v == null)) return acc;
     const vL = vals[vals.length - 1], vP = vals.length >= 2 ? vals[vals.length - 2] : null;
-    const vFirst = vals.find(v => v != null);
+    const vFirst = allVals.find(v => v != null);
     acc.push({ ...c, vals, delta: vL != null && vP != null ? vL - vP : null, varTotal: vL != null && vFirst != null ? vL - vFirst : null });
     return acc;
   }, []);
@@ -1201,8 +1207,7 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, tex
           },
         ].map(card => {
           const dTotal = (card.vN != null && card.vFirst != null && avs.length > 1) ? card.vN - card.vFirst : null;
-          const good = dTotal == null ? null : ((card.lowerIsBetter && dTotal < 0) || (!card.lowerIsBetter && dTotal > 0));
-          const deltaCol = dTotal == null ? '#888' : (good ? '#16a34a' : '#dc2626');
+          const deltaCol = dTotal == null ? '#888' : '#475569';   // neutro
           const arrow = dTotal == null ? '' : dTotal > 0 ? '▲' : '▼';
           return (
             <div key={card.nome} style={{ background:'#fafafa', border:'1px solid #ebebeb', borderRadius:6, padding:'10px 12px' }}>
@@ -1212,7 +1217,7 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, tex
                 {card.display}<span style={{ fontSize:10, color:'#888', marginLeft:3 }}>{card.unit}</span>
               </div>
               {dTotal != null && (
-                <div style={{ marginTop:4, fontSize:10, color:deltaCol, fontWeight:600 }}>
+                <div style={{ marginTop:4, fontSize:10, color:deltaCol, fontWeight:600, whiteSpace:'nowrap' }}>
                   {arrow} {dTotal > 0 ? '+' : ''}{n(dTotal, card.dec)}{card.unit} <span style={{ fontSize:8, color:'#aaa', fontWeight:400 }}>total</span>
                 </div>
               )}
@@ -1316,11 +1321,34 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, tex
       )}
 
       {/* ══════════════════════════════════════════════════════════════
+          PARTE 4B — Gasto Energético (TMB / GET)
+      ══════════════════════════════════════════════════════════════ */}
+      {showSec('energia') && rN.mifflin != null && (
+      <div style={{ breakInside:'avoid', marginTop:8 }}>
+        <SecHeader title="Gasto Energético" right="Estimativa · última avaliação"/>
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10 }}>
+          {[
+            { l:'Taxa Metabólica Basal', v: n(rN.mifflin, 0), u:'kcal/dia', sub:'Mifflin-St Jeor (1990)' },
+            { l:'Fator de atividade', v: n(palLast.fator, 2), u:'× TMB', sub:'Nível de atividade física (PAL)' },
+            { l:'Gasto Energético Total', v: getLast != null ? n(getLast, 0) : '—', u:'kcal/dia', sub:'TMB × fator de atividade' },
+          ].map((c, i) => (
+            <div key={i} style={{ background:'#fafafa', border:'1px solid #ebebeb', borderRadius:6, padding:'11px 13px' }}>
+              <div style={{ fontSize:8.5, fontWeight:700, color:'#888', textTransform:'uppercase', letterSpacing:'0.06em' }}>{c.l}</div>
+              <div style={{ fontSize:20, fontWeight:700, fontFamily:"'JetBrains Mono',monospace", color:'#111', lineHeight:1.15, marginTop:2 }}>{c.v} <span style={{ fontSize:9, color:'#888', fontWeight:400 }}>{c.u}</span></div>
+              <div style={{ fontSize:8.5, color:'#aaa', marginTop:2 }}>{c.sub}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{ fontSize:8.5, color:'#999', marginTop:5, lineHeight:1.5 }}>Estimativa de gasto energético — não substitui calorimetria indireta nem avaliação individualizada.</div>
+      </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════
           PARTE 5 — Histórico de Avaliações
       ══════════════════════════════════════════════════════════════ */}
       {showSec('historico') && (
       <div style={{ breakInside:'avoid', marginTop:8 }}>
-        <SecHeader title="Histórico de Avaliações" right={`Protocolo: ${protoLabel}`}/>
+        <SecHeader title="Histórico de Avaliações" right={`Protocolo: ${protoLabel}${avsTrunc ? ` · últimas ${MAX_TAB} de ${avs.length}` : ''}`}/>
         <table style={{ width:'100%', borderCollapse:'collapse', fontSize:10 }}>
           <thead>
             <tr style={{ background:'#1a1a1a' }}>
@@ -1330,7 +1358,7 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, tex
             </tr>
           </thead>
           <tbody>
-            {avs.slice().reverse().map((av, idx) => {
+            {avsRel.slice().reverse().map((av, idx) => {
               const r = calcularTudo(av.peso, av.altura, patient.sexo, idade, av.dobras, av.circs);
               const g = getProtoG(av);
               const mg = g != null ? av.peso * g / 100 : null;
@@ -1394,17 +1422,17 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, tex
           borderBottom:'1px solid #444', whiteSpace:'nowrap', background:'#1a1a1a',
         };
         const tdStyle = { padding:'4px 7px', textAlign:'center', fontFamily:'monospace', fontSize:9 };
-        const showExtra = avs.length > 1;
+        const showExtra = avsRel.length > 1;
 
         return (
           <div style={{ marginTop:8, breakInside:'avoid' }}>
-            <SecHeader title="Medidas Brutas" right="Dobras cutâneas (mm) · Circunferências (cm)"/>
+            <SecHeader title="Medidas Brutas" right={`Dobras (mm) · Circunferências (cm)${avsTrunc ? ` · últimas ${MAX_TAB} de ${avs.length}` : ''}`}/>
             <table style={{ width:'100%', borderCollapse:'collapse', fontSize:9 }}>
               <thead>
                 <tr>
                   <th style={{ ...thStyle, textAlign:'left', minWidth:90 }}>Medida</th>
-                  {avs.map((av, idx) => {
-                    const isLast = idx === avs.length - 1;
+                  {avsRel.map((av, idx) => {
+                    const isLast = idx === avsRel.length - 1;
                     return (
                       <th key={av.id} style={{ ...thStyle, fontWeight: isLast ? 800 : 700, background: isLast ? '#16a34a' : '#1a1a1a' }}>
                         {_fmtData(av.data)}
@@ -1439,12 +1467,12 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, tex
                       </td>
                     ))}
                     {showExtra && (
-                      <td style={{ ...tdStyle, fontWeight:600, color: d.delta == null ? '#999' : d.delta < -0.05 ? '#16a34a' : d.delta > 0.05 ? '#dc2626' : '#888' }}>
+                      <td style={{ ...tdStyle, fontWeight:600, color: d.delta == null ? '#999' : Math.abs(d.delta) > 0.05 ? '#475569' : '#888' }}>
                         {d.delta == null ? '—' : (d.delta > 0 ? '+' : '') + n(d.delta, d.dec)}
                       </td>
                     )}
                     {showExtra && (
-                      <td style={{ ...tdStyle, fontWeight:700, color: d.varTotal == null ? '#999' : d.varTotal < -0.05 ? '#16a34a' : d.varTotal > 0.05 ? '#dc2626' : '#888' }}>
+                      <td style={{ ...tdStyle, fontWeight:700, color: d.varTotal == null ? '#999' : Math.abs(d.varTotal) > 0.05 ? '#475569' : '#888' }}>
                         {d.varTotal == null ? '—' : (d.varTotal > 0 ? '+' : '') + n(d.varTotal, d.dec)}
                       </td>
                     )}
@@ -1458,7 +1486,7 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, tex
 
                 {/* Σ8 ISAK — subtotal das dobras cutâneas */}
                 {dobrasRows.length > 0 && (() => {
-                  const isakVals = avs.map(av => calcISAK8(av.dobras || {}));
+                  const isakVals = avsRel.map(av => calcISAK8(av.dobras || {}));
                   const vL = isakVals[isakVals.length - 1], vP = isakVals.length >= 2 ? isakVals[isakVals.length - 2] : null;
                   const vFirst = isakVals.find(v => v != null);
                   const delta = vL != null && vP != null ? vL - vP : null;
@@ -1472,12 +1500,12 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, tex
                         </td>
                       ))}
                       {showExtra && (
-                        <td style={{ ...tdStyle, fontWeight:700, color: delta == null ? '#999' : delta < -0.05 ? '#16a34a' : delta > 0.05 ? '#dc2626' : '#888' }}>
+                        <td style={{ ...tdStyle, fontWeight:700, color: delta == null ? '#999' : Math.abs(delta) > 0.05 ? '#475569' : '#888' }}>
                           {delta == null ? '—' : (delta > 0 ? '+' : '') + n(delta, 1)}
                         </td>
                       )}
                       {showExtra && (
-                        <td style={{ ...tdStyle, fontWeight:800, color: varTotal == null ? '#999' : varTotal < -0.05 ? '#16a34a' : varTotal > 0.05 ? '#dc2626' : '#888' }}>
+                        <td style={{ ...tdStyle, fontWeight:800, color: varTotal == null ? '#999' : Math.abs(varTotal) > 0.05 ? '#475569' : '#888' }}>
                           {varTotal == null ? '—' : (varTotal > 0 ? '+' : '') + n(varTotal, 1)}
                         </td>
                       )}
@@ -1511,12 +1539,12 @@ const PrintReport = ({ patient, avs, protoRef, protoLabel, idade, getProtoG, tex
                       </td>
                     ))}
                     {showExtra && (
-                      <td style={{ ...tdStyle, fontWeight:600, color: c.delta == null ? '#999' : c.delta < -0.05 ? '#16a34a' : c.delta > 0.05 ? '#dc2626' : '#888' }}>
+                      <td style={{ ...tdStyle, fontWeight:600, color: c.delta == null ? '#999' : Math.abs(c.delta) > 0.05 ? '#475569' : '#888' }}>
                         {c.delta == null ? '—' : (c.delta > 0 ? '+' : '') + n(c.delta, c.dec)}
                       </td>
                     )}
                     {showExtra && (
-                      <td style={{ ...tdStyle, fontWeight:700, color: c.varTotal == null ? '#999' : c.varTotal < -0.05 ? '#16a34a' : c.varTotal > 0.05 ? '#dc2626' : '#888' }}>
+                      <td style={{ ...tdStyle, fontWeight:700, color: c.varTotal == null ? '#999' : Math.abs(c.varTotal) > 0.05 ? '#475569' : '#888' }}>
                         {c.varTotal == null ? '—' : (c.varTotal > 0 ? '+' : '') + n(c.varTotal, c.dec)}
                       </td>
                     )}
